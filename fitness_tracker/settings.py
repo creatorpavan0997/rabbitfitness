@@ -137,7 +137,7 @@ CORS_ALLOW_ALL_ORIGINS = True
 CORS_ALLOW_CREDENTIALS = True
 
 # Session Persistence and Security Settings
-SESSION_COOKIE_AGE = 1209600  # Keep users logged in for 2 weeks
+SESSION_COOKIE_AGE = 5184000  # Keep users logged in for 60 days (5,184,000 seconds)
 SESSION_EXPIRE_AT_BROWSER_CLOSE = False  # Keep session when browser is closed
 SESSION_SAVE_EVERY_REQUEST = True  # Extend expiration on every request
 
