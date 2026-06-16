@@ -292,17 +292,35 @@ class FoodSaveView(APIView):
 
 
 def generate_gemini_content(prompt):
-    keys = [
-        os.getenv("GEMINI_API_KEY"),
-        os.getenv("GEMINI_API_KEY_2"),
-        os.getenv("GEMINI_API_KEY_3")
-    ]
-    valid_keys = [k for k in keys if k]
-    if not valid_keys:
+    keys = []
+    primary = os.getenv("GEMINI_API_KEY")
+    if primary:
+        keys.append(primary)
+        
+    extra_keys = []
+    for env_name, env_val in os.environ.items():
+        if env_name.startswith("GEMINI_API_KEY_") and env_val:
+            extra_keys.append((env_name, env_val))
+            
+    # Sort logically so GEMINI_API_KEY_2 comes before GEMINI_API_KEY_10
+    def get_sort_key(item):
+        name = item[0]
+        suffix = name[len("GEMINI_API_KEY_"):]
+        if suffix.isdigit():
+            return (0, int(suffix))
+        return (1, name)
+        
+    extra_keys.sort(key=get_sort_key)
+    
+    for _, val in extra_keys:
+        if val not in keys:
+            keys.append(val)
+
+    if not keys:
         raise ValueError("No Gemini API keys are configured in environment settings.")
 
     last_error = None
-    for i, key in enumerate(valid_keys):
+    for i, key in enumerate(keys):
         try:
             genai.configure(api_key=key)
             model = genai.GenerativeModel('gemini-flash-latest')
