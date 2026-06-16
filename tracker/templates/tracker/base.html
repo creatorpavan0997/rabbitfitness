@@ -35,6 +35,9 @@
                             <a class="nav-link px-3 {% if request.resolver_match.url_name == 'food_log' %}active{% endif %}" href="{% url 'food_log' %}">Food Log</a>
                         </li>
                         <li class="nav-item">
+                            <a class="nav-link px-3 {% if request.resolver_match.url_name == 'diet_plan' %}active{% endif %}" href="{% url 'diet_plan' %}">🐰 Diet Plan</a>
+                        </li>
+                        <li class="nav-item">
                             <a class="nav-link px-3 {% if request.resolver_match.url_name == 'water_tracker' %}active{% endif %}" href="{% url 'water_tracker' %}">Water Log</a>
                         </li>
                         <li class="nav-item">

@@ -11,6 +11,8 @@ router.register(r'food-log', api_views.FoodLogViewSet, basename='food-log')
 router.register(r'weight-log', api_views.WeightLogViewSet, basename='weight-log')
 router.register(r'water-log', api_views.WaterLogViewSet, basename='water-log')
 router.register(r'routines', api_views.DailyRoutineViewSet, basename='routines')
+router.register(r'diet-meals', api_views.DietMealViewSet, basename='diet-meals')
+router.register(r'diet-checks', api_views.DailyDietCheckViewSet, basename='diet-checks')
 
 
 urlpatterns = [
@@ -26,6 +28,7 @@ urlpatterns = [
     path('weight/', views.weight_tracker_view, name='weight_tracker'),
     path('water/', views.water_tracker_view, name='water_tracker'),
     path('ai-coach/', views.ai_coach_view, name='ai_coach'),
+    path('diet-plan/', views.diet_plan_view, name='diet_plan'),
     
     # Password Reset URLs
     path('password-reset/', auth_views.PasswordResetView.as_view(

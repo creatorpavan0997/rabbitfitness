@@ -122,6 +122,48 @@ class DailyRoutine(models.Model):
     def __str__(self):
         return f"{self.user.username} - {self.task_name} on {self.logged_at} (Completed: {self.is_completed})"
 
+class DietMeal(models.Model):
+    MEAL_CHOICES = [
+        ('breakfast', 'Breakfast'),
+        ('lunch', 'Lunch'),
+        ('snack', 'Snack'),
+        ('dinner', 'Dinner'),
+    ]
+    user = models.ForeignKey(User, on_delete=models.CASCADE, related_name='diet_meals')
+    meal_type = models.CharField(max_length=15, choices=MEAL_CHOICES)
+    items = models.TextField(help_text="Checklist items text list")
+    calories = models.DecimalField(max_digits=6, decimal_places=2, default=0.00)
+    protein = models.DecimalField(max_digits=6, decimal_places=2, default=0.00)
+    carbs = models.DecimalField(max_digits=6, decimal_places=2, default=0.00)
+    fat = models.DecimalField(max_digits=6, decimal_places=2, default=0.00)
+
+    class Meta:
+        unique_together = ('user', 'meal_type')
+
+    def __str__(self):
+        return f"{self.user.username}'s {self.get_meal_type_display()} Plan"
+
+
+class DailyDietCheck(models.Model):
+    MEAL_CHOICES = [
+        ('breakfast', 'Breakfast'),
+        ('lunch', 'Lunch'),
+        ('snack', 'Snack'),
+        ('dinner', 'Dinner'),
+    ]
+    user = models.ForeignKey(User, on_delete=models.CASCADE, related_name='diet_checks')
+    meal_type = models.CharField(max_length=15, choices=MEAL_CHOICES)
+    logged_at = models.DateField(default=timezone.localdate)
+    is_eaten = models.BooleanField(default=False)
+    linked_log = models.ForeignKey(FoodLog, on_delete=models.SET_NULL, null=True, blank=True, related_name='diet_checks')
+
+    class Meta:
+        ordering = ['logged_at', 'meal_type']
+        unique_together = ('user', 'meal_type', 'logged_at')
+
+    def __str__(self):
+        return f"{self.user.username} - {self.get_meal_type_display()} on {self.logged_at} (Eaten: {self.is_eaten})"
+
 
 # Signals to auto-create user profile and default fitness goal on registration
 @receiver(post_save, sender=User)

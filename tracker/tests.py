@@ -5,7 +5,7 @@ from rest_framework.test import APITestCase
 from rest_framework import status
 from decimal import Decimal
 
-from .models import UserProfile, FitnessGoal, FoodItem, FoodLog, WeightLog, WaterLog
+from .models import UserProfile, FitnessGoal, FoodItem, FoodLog, WeightLog, WaterLog, DietMeal, DailyDietCheck
 
 class SignalTests(TestCase):
     def test_user_creation_creates_profile_and_goal(self):
@@ -91,3 +91,71 @@ class WaterLogAPITests(APITestCase):
         self.assertEqual(response2.status_code, status.HTTP_200_OK)
         log.refresh_from_db()
         self.assertEqual(log.amount, 750)
+
+
+class DietPlanAPITests(APITestCase):
+    def setUp(self):
+        self.user = User.objects.create_user(username='diet_user', password='password123')
+        self.client.force_authenticate(user=self.user)
+
+    def test_seeding_default_diet_plan(self):
+        url = '/api/diet-meals/'
+        response = self.client.get(url)
+        self.assertEqual(response.status_code, status.HTTP_200_OK)
+        self.assertEqual(len(response.data), 4)
+
+        self.assertEqual(DietMeal.objects.filter(user=self.user).count(), 4)
+
+        breakfast = DietMeal.objects.get(user=self.user, meal_type='breakfast')
+        self.assertEqual(breakfast.calories, Decimal('939.00'))
+        self.assertEqual(breakfast.protein, Decimal('35.00'))
+
+    def test_update_diet_meal(self):
+        self.client.get('/api/diet-meals/')
+        meal = DietMeal.objects.get(user=self.user, meal_type='breakfast')
+
+        url = f'/api/diet-meals/{meal.id}/'
+        data = {
+            'meal_type': 'breakfast',
+            'items': '* Protein Shake - 1 serving',
+            'calories': 150.00,
+            'protein': 30.00,
+            'carbs': 3.00,
+            'fat': 2.00
+        }
+        response = self.client.put(url, data, format='json')
+        self.assertEqual(response.status_code, status.HTTP_200_OK)
+
+        meal.refresh_from_db()
+        self.assertEqual(meal.calories, Decimal('150.00'))
+        self.assertEqual(meal.protein, Decimal('30.00'))
+        self.assertEqual(meal.items, '* Protein Shake - 1 serving')
+
+    def test_toggle_diet_check_creates_and_deletes_food_log(self):
+        url = '/api/diet-checks/toggle/'
+        data = {
+            'meal_type': 'lunch',
+            'is_eaten': True
+        }
+        response = self.client.post(url, data, format='json')
+        self.assertEqual(response.status_code, status.HTTP_200_OK)
+        self.assertTrue(response.data['is_eaten'])
+
+        food_logs = FoodLog.objects.filter(user=self.user, meal_type='lunch')
+        self.assertEqual(food_logs.count(), 1)
+        food_log = food_logs.first()
+        self.assertEqual(food_log.food_name, "Diet Plan: Lunch")
+        self.assertEqual(food_log.calories, Decimal('1345.00'))
+
+        check = DailyDietCheck.objects.get(user=self.user, meal_type='lunch', logged_at=timezone.localdate())
+        self.assertEqual(check.linked_log, food_log)
+
+        data['is_eaten'] = False
+        response2 = self.client.post(url, data, format='json')
+        self.assertEqual(response2.status_code, status.HTTP_200_OK)
+        self.assertFalse(response2.data['is_eaten'])
+
+        self.assertEqual(FoodLog.objects.filter(user=self.user, meal_type='lunch').count(), 0)
+
+        check.refresh_from_db()
+        self.assertIsNone(check.linked_log)

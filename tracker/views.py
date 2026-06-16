@@ -72,6 +72,10 @@ def water_tracker_view(request):
 def ai_coach_view(request):
     return render(request, 'tracker/ai_coach.html')
 
+@login_required
+def diet_plan_view(request):
+    return render(request, 'tracker/diet_plan.html')
+
 def logout_view(request):
     logout(request)
     messages.info(request, "You have been logged out.")

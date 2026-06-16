@@ -1,6 +1,6 @@
 from rest_framework import serializers
 from django.contrib.auth.models import User
-from .models import UserProfile, FitnessGoal, FoodItem, FoodLog, WeightLog, WaterLog, AIRecommendation, DailyRoutine
+from .models import UserProfile, FitnessGoal, FoodItem, FoodLog, WeightLog, WaterLog, AIRecommendation, DailyRoutine, DietMeal, DailyDietCheck
 
 class UserSerializer(serializers.ModelSerializer):
     class Meta:
@@ -113,3 +113,21 @@ class DailyRoutineSerializer(serializers.ModelSerializer):
         model = DailyRoutine
         fields = ['id', 'user', 'task_name', 'is_completed', 'logged_at']
         read_only_fields = ['id']
+
+
+class DietMealSerializer(serializers.ModelSerializer):
+    user = serializers.HiddenField(default=serializers.CurrentUserDefault())
+
+    class Meta:
+        model = DietMeal
+        fields = ['id', 'user', 'meal_type', 'items', 'calories', 'protein', 'carbs', 'fat']
+        read_only_fields = ['id']
+
+
+class DailyDietCheckSerializer(serializers.ModelSerializer):
+    user = serializers.HiddenField(default=serializers.CurrentUserDefault())
+
+    class Meta:
+        model = DailyDietCheck
+        fields = ['id', 'user', 'meal_type', 'logged_at', 'is_eaten', 'linked_log']
+        read_only_fields = ['id', 'linked_log']

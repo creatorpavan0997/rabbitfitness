@@ -11,10 +11,11 @@ import os
 import json
 import google.generativeai as genai
 
-from .models import FoodLog, WeightLog, WaterLog, FoodItem, FitnessGoal, AIRecommendation, UserProfile, DailyRoutine
+from .models import FoodLog, WeightLog, WaterLog, FoodItem, FitnessGoal, AIRecommendation, UserProfile, DailyRoutine, DietMeal, DailyDietCheck
 from .serializers import (
     FoodLogSerializer, WeightLogSerializer, WaterLogSerializer,
-    FoodItemSerializer, FitnessGoalSerializer, AIRecommendationSerializer, DailyRoutineSerializer
+    FoodItemSerializer, FitnessGoalSerializer, AIRecommendationSerializer, DailyRoutineSerializer,
+    DietMealSerializer, DailyDietCheckSerializer
 )
 
 class FoodLogViewSet(viewsets.ModelViewSet):
@@ -553,3 +554,163 @@ class DailyRoutineViewSet(viewsets.ModelViewSet):
 
     def perform_create(self, serializer):
         serializer.save(user=self.request.user)
+
+
+DEFAULT_DIET_PLAN = [
+    {
+        'meal_type': 'breakfast',
+        'items': "* Oats – 100g\n* Milk – 250ml\n* Peanut Butter – 2 tbsp\n* Banana – 2",
+        'calories': 939.00,
+        'protein': 35.00,
+        'carbs': 138.00,
+        'fat': 32.00,
+    },
+    {
+        'meal_type': 'lunch',
+        'items': "* Cooked Rice – 650g\n* Dal – 1.5 cups\n* Curd – 100g\n* Boiled Eggs – 2",
+        'calories': 1345.00,
+        'protein': 49.50,
+        'carbs': 231.00,
+        'fat': 21.00,
+    },
+    {
+        'meal_type': 'snack',
+        'items': "* Egg Whites – 6\n* Boiled Chana – 100g\n* Sprouts – 50g\n* Sweet Corn – 50g",
+        'calories': 329.00,
+        'protein': 35.00,
+        'carbs': 41.00,
+        'fat': 4.00,
+    },
+    {
+        'meal_type': 'dinner',
+        'items': "* Roti – 4\n* Ghee – 1 tbsp\n* Soya Chunks (dry weight) – 50g\n* Cooked Rice – 225g\n* Curd – 100g",
+        'calories': 966.00,
+        'protein': 46.50,
+        'carbs': 148.00,
+        'fat': 22.50,
+    },
+]
+
+
+class DietMealViewSet(viewsets.ModelViewSet):
+    serializer_class = DietMealSerializer
+    permission_classes = [permissions.IsAuthenticated]
+
+    def get_queryset(self):
+        user = self.request.user
+        queryset = DietMeal.objects.filter(user=user)
+        if not queryset.exists():
+            # Seed the default plan
+            for meal in DEFAULT_DIET_PLAN:
+                DietMeal.objects.create(
+                    user=user,
+                    meal_type=meal['meal_type'],
+                    items=meal['items'],
+                    calories=meal['calories'],
+                    protein=meal['protein'],
+                    carbs=meal['carbs'],
+                    fat=meal['fat']
+                )
+            queryset = DietMeal.objects.filter(user=user)
+        return queryset.order_by('id')
+
+    def perform_create(self, serializer):
+        serializer.save(user=self.request.user)
+
+
+class DailyDietCheckViewSet(viewsets.ModelViewSet):
+    serializer_class = DailyDietCheckSerializer
+    permission_classes = [permissions.IsAuthenticated]
+
+    def get_queryset(self):
+        user = self.request.user
+        today = timezone.localdate()
+        date_str = self.request.query_params.get('date', None)
+        if date_str:
+            try:
+                today = timezone.datetime.strptime(date_str, '%Y-%m-%d').date()
+            except ValueError:
+                pass
+        
+        queryset = DailyDietCheck.objects.filter(user=user, logged_at=today)
+        return queryset.order_by('id')
+
+    @action(detail=False, methods=['POST'], url_path='toggle')
+    def toggle(self, request):
+        user = request.user
+        meal_type = request.data.get('meal_type')
+        is_eaten = request.data.get('is_eaten')
+        date_str = request.data.get('date', None)
+        
+        if not meal_type:
+            return Response({'error': 'meal_type is required'}, status=status.HTTP_400_BAD_REQUEST)
+        if is_eaten is None:
+            return Response({'error': 'is_eaten is required'}, status=status.HTTP_400_BAD_REQUEST)
+            
+        today = timezone.localdate()
+        if date_str:
+            try:
+                today = timezone.datetime.strptime(date_str, '%Y-%m-%d').date()
+            except ValueError:
+                return Response({'error': 'Invalid date format'}, status=status.HTTP_400_BAD_REQUEST)
+                
+        # Get the corresponding DietMeal to retrieve macros
+        diet_meal = DietMeal.objects.filter(user=user, meal_type=meal_type).first()
+        if not diet_meal:
+            for meal in DEFAULT_DIET_PLAN:
+                DietMeal.objects.get_or_create(
+                    user=user,
+                    meal_type=meal['meal_type'],
+                    defaults={
+                        'items': meal['items'],
+                        'calories': meal['calories'],
+                        'protein': meal['protein'],
+                        'carbs': meal['carbs'],
+                        'fat': meal['fat']
+                    }
+                )
+            diet_meal = DietMeal.objects.filter(user=user, meal_type=meal_type).first()
+
+        # Find or create check log
+        check, created = DailyDietCheck.objects.get_or_create(
+            user=user,
+            meal_type=meal_type,
+            logged_at=today,
+            defaults={'is_eaten': False}
+        )
+
+        if is_eaten:
+            check.is_eaten = True
+            if not check.linked_log:
+                meal_display = dict(DietMeal.MEAL_CHOICES).get(meal_type, meal_type.capitalize())
+                food_name = f"Diet Plan: {meal_display}"
+                
+                # Make local timezone aware datetime
+                current_time = timezone.localtime(timezone.now()).time()
+                naive_datetime = timezone.datetime.combine(today, current_time)
+                logged_datetime = timezone.make_aware(naive_datetime)
+                
+                food_log = FoodLog.objects.create(
+                    user=user,
+                    food_name=food_name,
+                    meal_type=meal_type,
+                    quantity=1.00,
+                    calories=diet_meal.calories,
+                    protein=diet_meal.protein,
+                    carbs=diet_meal.carbs,
+                    fat=diet_meal.fat,
+                    logged_at=logged_datetime
+                )
+                check.linked_log = food_log
+            check.save()
+        else:
+            check.is_eaten = False
+            if check.linked_log:
+                food_log = check.linked_log
+                check.linked_log = None
+                check.save()
+                food_log.delete()
+            else:
+                check.save()
+                
+        return Response(DailyDietCheckSerializer(check).data, status=status.HTTP_200_OK)
