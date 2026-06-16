@@ -29,6 +29,7 @@ urlpatterns = [
     path('water/', views.water_tracker_view, name='water_tracker'),
     path('ai-coach/', views.ai_coach_view, name='ai_coach'),
     path('diet-plan/', views.diet_plan_view, name='diet_plan'),
+    path('cooking-timer/', views.cooking_timer_view, name='cooking_timer'),
     
     # Password Reset URLs
     path('password-reset/', auth_views.PasswordResetView.as_view(

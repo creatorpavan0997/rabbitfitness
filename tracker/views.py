@@ -76,6 +76,10 @@ def ai_coach_view(request):
 def diet_plan_view(request):
     return render(request, 'tracker/diet_plan.html')
 
+@login_required
+def cooking_timer_view(request):
+    return render(request, 'tracker/cooking_timer.html')
+
 def logout_view(request):
     logout(request)
     messages.info(request, "You have been logged out.")

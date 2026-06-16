@@ -1,0 +1,483 @@
+{% extends 'tracker/base.html' %}
+{% block title %}Cooking Timer | 🐰 Rabbit Fitness{% endblock %}
+
+{% block content %}
+<style>
+    /* Pulse glow effect for running timer */
+    .timer-ring-active {
+        animation: pulse-glow 2s infinite ease-in-out;
+    }
+    @keyframes pulse-glow {
+        0% {
+            filter: drop-shadow(0 0 4px rgba(0, 210, 255, 0.4));
+        }
+        50% {
+            filter: drop-shadow(0 0 16px rgba(0, 210, 255, 0.8));
+        }
+        100% {
+            filter: drop-shadow(0 0 4px rgba(0, 210, 255, 0.4));
+        }
+    }
+    
+    /* Alarm screen shake effect */
+    .alarm-shake {
+        animation: alarm-shake-anim 0.5s infinite;
+    }
+    @keyframes alarm-shake-anim {
+        0%, 100% { transform: translate(0, 0) rotate(0deg); }
+        20% { transform: translate(-2px, 2px) rotate(-1deg); }
+        40% { transform: translate(2px, -2px) rotate(1deg); }
+        60% { transform: translate(-2px, -2px) rotate(-0.5deg); }
+        80% { transform: translate(2px, 2px) rotate(0.5deg); }
+    }
+</style>
+
+<div class="row mb-4">
+    <div class="col-12">
+        <div class="glass-card py-4 d-flex flex-column flex-md-row justify-content-between align-items-md-center gap-3">
+            <div>
+                <h1 class="fw-bold mb-1">🍳 Kitchen & Cooking Timer</h1>
+                <p class="text-muted mb-0">Set precise timers for egg boiling or meal prep, with alarm sounds and system notifications.</p>
+            </div>
+            <div>
+                <button class="btn btn-outline-secondary btn-sm px-3 py-2" id="btn-request-notification">
+                    🔔 Enable Desktop Notifications
+                </button>
+            </div>
+        </div>
+    </div>
+</div>
+
+<div class="row">
+    <!-- Timer Display Card (Main Area) -->
+    <div class="col-lg-7 mb-4">
+        <div class="glass-card text-center d-flex flex-column justify-content-center align-items-center py-5 h-100" id="timer-main-card">
+            <h4 class="text-muted fw-bold mb-4" id="timer-status">IDLE</h4>
+            
+            <!-- Circular SVG Timer Face -->
+            <div class="position-relative d-inline-flex justify-content-center align-items-center my-3">
+                <svg class="progress-ring" id="timer-svg" width="280" height="280">
+                    <circle class="progress-ring-bg" stroke="var(--border-color)" stroke-width="12" fill="transparent" r="125" cx="140" cy="140"/>
+                    <circle class="progress-ring__circle" id="timer-progress-circle" stroke="var(--color-primary)" stroke-width="12" fill="transparent" r="125" cx="140" cy="140" stroke-linecap="round" stroke-dasharray="785.4" stroke-dashoffset="0" style="transition: stroke-dashoffset 0.1s linear, stroke var(--transition-speed);"/>
+                </svg>
+                <div class="position-absolute text-center">
+                    <h1 class="display-3 fw-extrabold m-0" id="timer-text" style="font-family: monospace; letter-spacing: -2px;">00:00</h1>
+                    <div class="text-muted small fw-semibold mt-1" id="timer-label">SET TIME</div>
+                </div>
+            </div>
+            
+            <!-- Controls Buttons -->
+            <div class="mt-4 pt-3 d-flex justify-content-center gap-3 w-100 flex-wrap" style="max-width: 450px;">
+                <button class="btn btn-primary btn-lg px-4 py-3 flex-grow-1" id="btn-start" style="font-size: 1.1rem;">⚡ Start</button>
+                <button class="btn btn-outline-secondary btn-lg px-4 py-3 flex-grow-1" id="btn-pause" disabled style="font-size: 1.1rem;">⏸️ Pause</button>
+                <button class="btn btn-outline-danger btn-lg px-4 py-3 flex-grow-1" id="btn-reset" style="font-size: 1.1rem;">🔄 Reset</button>
+            </div>
+            
+            <!-- Stop Alarm Button (Only visible during alarm) -->
+            <div class="mt-3 w-100 d-none" id="stop-alarm-container" style="max-width: 450px;">
+                <button class="btn btn-danger btn-lg w-100 py-3 fw-extrabold pulse" id="btn-stop-alarm" style="font-size: 1.2rem; animation: pulse 1s infinite;">
+                    🔕 STOP ALARM
+                </button>
+            </div>
+        </div>
+    </div>
+    
+    <!-- Presets & Custom Configuration (Side Area) -->
+    <div class="col-lg-5 mb-4">
+        <!-- Shortcut Presets Card -->
+        <div class="glass-card mb-4">
+            <h4 class="fw-bold mb-3">🥚 Preset Shortcuts</h4>
+            <p class="text-muted small">Quick-start timers configured for egg boiling and common tasks.</p>
+            
+            <div class="row g-2">
+                <div class="col-6">
+                    <button class="btn btn-outline-primary w-100 py-3 text-start preset-btn" data-sec="360">
+                        <span class="fs-4">🥚</span><br>
+                        <strong>Soft Boiled</strong><br>
+                        <span class="text-muted small">6 Minutes</span>
+                    </button>
+                </div>
+                <div class="col-6">
+                    <button class="btn btn-outline-primary w-100 py-3 text-start preset-btn" data-sec="600">
+                        <span class="fs-4">🥚</span><br>
+                        <strong>Hard Boiled</strong><br>
+                        <span class="text-muted small">10 Minutes</span>
+                    </button>
+                </div>
+                <div class="col-6">
+                    <button class="btn btn-outline-secondary w-100 py-2 preset-btn" data-sec="300">⏱️ 5 Minutes</button>
+                </div>
+                <div class="col-6">
+                    <button class="btn btn-outline-secondary w-100 py-2 preset-btn" data-sec="600">⏱️ 10 Minutes</button>
+                </div>
+                <div class="col-6">
+                    <button class="btn btn-outline-secondary w-100 py-2 preset-btn" data-sec="900">⏱️ 15 Minutes</button>
+                </div>
+                <div class="col-6">
+                    <button class="btn btn-outline-secondary w-100 py-2 preset-btn" data-sec="1800">⏱️ 30 Minutes</button>
+                </div>
+            </div>
+        </div>
+        
+        <!-- Custom Input Card -->
+        <div class="glass-card">
+            <h4 class="fw-bold mb-3">✏️ Custom Timer Duration</h4>
+            <p class="text-muted small">Configure a manual duration for your custom cooking recipes.</p>
+            
+            <form id="custom-timer-form">
+                <div class="row g-2 mb-3">
+                    <div class="col-4">
+                        <label class="form-label text-muted small fw-semibold">Hours</label>
+                        <input type="number" id="input-hours" class="form-control text-center py-2" min="0" max="23" value="0">
+                    </div>
+                    <div class="col-4">
+                        <label class="form-label text-muted small fw-semibold">Minutes</label>
+                        <input type="number" id="input-minutes" class="form-control text-center py-2" min="0" max="59" value="5">
+                    </div>
+                    <div class="col-4">
+                        <label class="form-label text-muted small fw-semibold">Seconds</label>
+                        <input type="number" id="input-seconds" class="form-control text-center py-2" min="0" max="59" value="0">
+                    </div>
+                </div>
+                <button type="submit" class="btn btn-outline-primary w-100 py-2">Apply Custom Time</button>
+            </form>
+            
+            <div class="mt-4 pt-3 border-top border-secondary border-opacity-10 text-center">
+                <button class="btn btn-sm btn-outline-secondary px-3 py-1" id="btn-test-sound">🔊 Test Alarm Sound</button>
+            </div>
+        </div>
+    </div>
+</div>
+
+{% endblock %}
+
+{% block scripts %}
+<script>
+    // Timer State Variables
+    let timerDuration = 300; // default 5 minutes (in seconds)
+    let timeLeft = 300;
+    let timerInterval = null;
+    let timerState = 'idle'; // 'idle', 'running', 'paused', 'alarm'
+    
+    // SVG Dasharray Settings
+    const circle = document.getElementById('timer-progress-circle');
+    const radius = circle.r.baseVal.value;
+    const circumference = radius * 2 * Math.PI;
+    
+    // Sound Generator (Web Audio API)
+    let audioCtx = null;
+    let alarmInterval = null;
+
+    // Initialize UI on load
+    document.addEventListener('DOMContentLoaded', () => {
+        circle.style.strokeDasharray = `${circumference} ${circumference}`;
+        updateTimerDisplay();
+        setupNotificationBtn();
+    });
+
+    // Setup Notification Authorization Button
+    function setupNotificationBtn() {
+        const btn = document.getElementById('btn-request-notification');
+        if (!btn) return;
+        
+        if (Notification.permission === 'granted') {
+            btn.textContent = '🔔 Notifications Active';
+            btn.className = 'btn btn-success btn-sm px-3 py-2 disabled';
+        } else if (Notification.permission === 'denied') {
+            btn.textContent = '❌ Notifications Blocked';
+            btn.className = 'btn btn-danger btn-sm px-3 py-2 disabled';
+        } else {
+            btn.addEventListener('click', () => {
+                Notification.requestPermission().then(permission => {
+                    if (permission === 'granted') {
+                        btn.textContent = '🔔 Notifications Active';
+                        btn.className = 'btn btn-success btn-sm px-3 py-2 disabled';
+                        new Notification("Rabbit Fitness", { body: "Notifications are successfully enabled!" });
+                    } else {
+                        btn.textContent = '❌ Notifications Blocked';
+                        btn.className = 'btn btn-danger btn-sm px-3 py-2 disabled';
+                    }
+                });
+            });
+        }
+    }
+
+    // Format seconds into readable time string
+    function formatTime(totalSeconds) {
+        const hrs = Math.floor(totalSeconds / 3600);
+        const mins = Math.floor((totalSeconds % 3600) / 60);
+        const secs = totalSeconds % 60;
+        
+        const pad = (num) => String(num).padStart(2, '0');
+        
+        if (hrs > 0) {
+            return `${pad(hrs)}:${pad(mins)}:${pad(secs)}`;
+        }
+        return `${pad(mins)}:${pad(secs)}`;
+    }
+
+    // Update screen components with current timer values
+    function updateTimerDisplay() {
+        const text = document.getElementById('timer-text');
+        text.textContent = formatTime(timeLeft);
+        
+        // Circular progress offset calculation
+        const percent = timerDuration > 0 ? (timeLeft / timerDuration) * 100 : 0;
+        const offset = circumference - (percent / 100 * circumference);
+        circle.style.strokeDashoffset = offset;
+        
+        // Update browser tab title with timer countdown
+        if (timerState === 'running') {
+            document.title = `⏱️ ${formatTime(timeLeft)} | Cooking Timer`;
+        } else if (timerState === 'alarm') {
+            document.title = `🚨 TIME'S UP! | Cooking Timer`;
+        } else {
+            document.title = `Cooking Timer | 🐰 Rabbit Fitness`;
+        }
+    }
+
+    // Main running clock timer function
+    function startTimer() {
+        if (timerState === 'running') return;
+        
+        // Resume Web Audio Context if suspended
+        initAudioContext();
+        
+        timerState = 'running';
+        document.getElementById('timer-status').textContent = 'RUNNING';
+        document.getElementById('timer-status').className = 'text-primary fw-bold mb-4';
+        
+        // SVG active pulsing glow
+        document.getElementById('timer-svg').classList.add('timer-ring-active');
+        circle.setAttribute('stroke', 'var(--color-primary)');
+        
+        document.getElementById('btn-start').disabled = true;
+        document.getElementById('btn-pause').disabled = false;
+        
+        timerInterval = setInterval(() => {
+            if (timeLeft > 0) {
+                timeLeft--;
+                updateTimerDisplay();
+            } else {
+                triggerAlarm();
+            }
+        }, 1000);
+    }
+
+    function pauseTimer() {
+        if (timerState !== 'running') return;
+        
+        clearInterval(timerInterval);
+        timerState = 'paused';
+        
+        document.getElementById('timer-status').textContent = 'PAUSED';
+        document.getElementById('timer-status').className = 'text-warning fw-bold mb-4';
+        
+        // Stop pulsing animation
+        document.getElementById('timer-svg').classList.remove('timer-ring-active');
+        
+        document.getElementById('btn-start').textContent = '⚡ Resume';
+        document.getElementById('btn-start').disabled = false;
+        document.getElementById('btn-pause').disabled = true;
+    }
+
+    function resetTimer() {
+        clearInterval(timerInterval);
+        stopAlarm();
+        
+        timerState = 'idle';
+        timeLeft = timerDuration;
+        
+        document.getElementById('timer-status').textContent = 'IDLE';
+        document.getElementById('timer-status').className = 'text-muted fw-bold mb-4';
+        
+        // Remove animations and glows
+        document.getElementById('timer-svg').classList.remove('timer-ring-active');
+        document.getElementById('timer-main-card').classList.remove('alarm-shake');
+        circle.setAttribute('stroke', 'var(--color-primary)');
+        
+        document.getElementById('btn-start').textContent = '⚡ Start';
+        document.getElementById('btn-start').disabled = false;
+        document.getElementById('btn-pause').disabled = true;
+        
+        updateTimerDisplay();
+    }
+
+    // Trigger Alarm when countdown hits zero
+    function triggerAlarm() {
+        clearInterval(timerInterval);
+        timerState = 'alarm';
+        timeLeft = 0;
+        updateTimerDisplay();
+        
+        document.getElementById('timer-status').textContent = "⏰ TIME'S UP!";
+        document.getElementById('timer-status').className = 'text-danger fw-bold mb-4 alarm-shake';
+        document.getElementById('timer-main-card').classList.add('alarm-shake');
+        circle.setAttribute('stroke', 'var(--color-danger)');
+        
+        document.getElementById('btn-start').disabled = true;
+        document.getElementById('btn-pause').disabled = true;
+        
+        // Show stop alarm container
+        document.getElementById('stop-alarm-container').classList.remove('d-none');
+        
+        // Play Alarm Audio Beeps
+        startAlarmSound();
+        
+        // Trigger Desktop Notification
+        if (Notification.permission === 'granted') {
+            new Notification("🍳 Timer Done!", {
+                body: "Your kitchen/cooking countdown has completed!",
+                icon: "https://cdn-icons-png.flaticon.com/512/1048/1048949.png",
+                tag: "cooking-timer-done",
+                requireInteraction: true
+            });
+        }
+    }
+
+    function stopAlarm() {
+        stopAlarmSound();
+        document.getElementById('stop-alarm-container').classList.add('d-none');
+        document.getElementById('timer-main-card').classList.remove('alarm-shake');
+        document.getElementById('timer-status').classList.remove('alarm-shake');
+    }
+
+    // Web Audio API Synthesis
+    function initAudioContext() {
+        if (!audioCtx) {
+            audioCtx = new (window.AudioContext || window.webkitAudioContext)();
+        }
+    }
+
+    function playBeep(frequency, duration) {
+        initAudioContext();
+        if (audioCtx.state === 'suspended') {
+            audioCtx.resume();
+        }
+        
+        const osc = audioCtx.createOscillator();
+        const gainNode = audioCtx.createGain();
+        
+        osc.type = 'sine';
+        osc.frequency.setValueAtTime(frequency, audioCtx.currentTime);
+        
+        gainNode.gain.setValueAtTime(0, audioCtx.currentTime);
+        gainNode.gain.linearRampToValueAtTime(0.4, audioCtx.currentTime + 0.01);
+        gainNode.gain.exponentialRampToValueAtTime(0.001, audioCtx.currentTime + duration);
+        
+        osc.connect(gainNode);
+        gainNode.connect(audioCtx.destination);
+        
+        osc.start();
+        osc.stop(audioCtx.currentTime + duration);
+    }
+
+    function startAlarmSound() {
+        if (alarmInterval) return;
+        
+        initAudioContext();
+        let cycle = 0;
+        
+        alarmInterval = setInterval(() => {
+            // Triple beep sequence
+            playBeep(980, 0.08);
+            setTimeout(() => playBeep(980, 0.08), 120);
+            setTimeout(() => playBeep(980, 0.08), 240);
+            
+            cycle++;
+            if (cycle >= 30) { // Auto stop after 30 beeps
+                stopAlarmSound();
+            }
+        }, 1200);
+    }
+
+    function stopAlarmSound() {
+        if (alarmInterval) {
+            clearInterval(alarmInterval);
+            alarmInterval = null;
+        }
+    }
+
+    // Preset Buttons Handlers
+    document.querySelectorAll('.preset-btn').forEach(btn => {
+        btn.addEventListener('click', (e) => {
+            const sec = parseInt(e.currentTarget.getAttribute('data-sec'));
+            
+            clearInterval(timerInterval);
+            stopAlarm();
+            
+            timerDuration = sec;
+            timeLeft = sec;
+            timerState = 'idle';
+            
+            // UI elements update
+            document.getElementById('timer-status').textContent = 'IDLE';
+            document.getElementById('timer-status').className = 'text-muted fw-bold mb-4';
+            document.getElementById('timer-svg').classList.remove('timer-ring-active');
+            circle.setAttribute('stroke', 'var(--color-primary)');
+            document.getElementById('btn-start').textContent = '⚡ Start';
+            document.getElementById('btn-start').disabled = false;
+            document.getElementById('btn-pause').disabled = true;
+            
+            updateTimerDisplay();
+            
+            // Scroll to the main timer display on mobile
+            if (window.innerWidth < 992) {
+                document.getElementById('timer-main-card').scrollIntoView({ behavior: 'smooth' });
+            }
+        });
+    });
+
+    // Custom Timer Submission Form
+    document.getElementById('custom-timer-form').addEventListener('submit', (e) => {
+        e.preventDefault();
+        
+        const hrs = parseInt(document.getElementById('input-hours').value) || 0;
+        const mins = parseInt(document.getElementById('input-minutes').value) || 0;
+        const secs = parseInt(document.getElementById('input-seconds').value) || 0;
+        
+        const totalSecs = (hrs * 3600) + (mins * 60) + secs;
+        
+        if (totalSecs <= 0) {
+            alert("Please enter a duration greater than 0 seconds.");
+            return;
+        }
+        
+        clearInterval(timerInterval);
+        stopAlarm();
+        
+        timerDuration = totalSecs;
+        timeLeft = totalSecs;
+        timerState = 'idle';
+        
+        document.getElementById('timer-status').textContent = 'IDLE';
+        document.getElementById('timer-status').className = 'text-muted fw-bold mb-4';
+        document.getElementById('timer-svg').classList.remove('timer-ring-active');
+        circle.setAttribute('stroke', 'var(--color-primary)');
+        document.getElementById('btn-start').textContent = '⚡ Start';
+        document.getElementById('btn-start').disabled = false;
+        document.getElementById('btn-pause').disabled = true;
+        
+        updateTimerDisplay();
+        
+        if (window.innerWidth < 992) {
+            document.getElementById('timer-main-card').scrollIntoView({ behavior: 'smooth' });
+        }
+    });
+
+    // UI Buttons Events Listeners
+    document.getElementById('btn-start').addEventListener('click', startTimer);
+    document.getElementById('btn-pause').addEventListener('click', pauseTimer);
+    document.getElementById('btn-reset').addEventListener('click', resetTimer);
+    document.getElementById('btn-stop-alarm').addEventListener('click', () => {
+        stopAlarm();
+        resetTimer();
+    });
+
+    // Test alarm sound trigger button
+    document.getElementById('btn-test-sound').addEventListener('click', () => {
+        playBeep(980, 0.1);
+        setTimeout(() => playBeep(980, 0.1), 150);
+    });
+</script>
+{% endblock %}
