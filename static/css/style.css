@@ -332,4 +332,27 @@ select option {
     text-shadow: 0 0 8px rgba(0, 210, 255, 0.65), 0 0 15px rgba(0, 210, 255, 0.35);
 }
 
+/* Mobile Navbar Toggler Visibility & Glow */
+.navbar-toggler {
+    padding: 0.5rem;
+    border-radius: 8px;
+    border: 1px solid var(--border-color) !important;
+    background: transparent;
+    transition: all var(--transition-speed);
+}
+.navbar-toggler:focus {
+    box-shadow: 0 0 0 3px var(--color-primary-glow) !important;
+}
+
+[data-theme="dark"] .navbar-toggler-icon {
+    /* Inverts the default dark lines to bright white in dark mode */
+    filter: invert(1) grayscale(1) brightness(2);
+}
+[data-theme="dark"] .navbar-toggler {
+    border-color: var(--color-primary) !important;
+    background-color: rgba(255, 255, 255, 0.05);
+    box-shadow: 0 0 8px var(--color-primary-glow);
+}
+
+
 
