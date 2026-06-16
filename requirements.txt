@@ -6,3 +6,5 @@ requests
 gunicorn
 google-generativeai
 whitenoise
+dj-database-url
+psycopg2-binary
