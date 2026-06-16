@@ -313,14 +313,14 @@ def generate_gemini_content(prompt):
     extra_keys.sort(key=get_sort_key)
     
     for _, val in extra_keys:
-        if val not in keys:
-            keys.append(val)
+        if val not in ordered_keys:
+            ordered_keys.append(val)
 
-    if not keys:
+    if not ordered_keys:
         raise ValueError("No Gemini API keys are configured in environment settings.")
 
     last_error = None
-    for i, key in enumerate(keys):
+    for i, key in enumerate(ordered_keys):
         try:
             genai.configure(api_key=key)
             model = genai.GenerativeModel('gemini-flash-latest')
@@ -414,7 +414,7 @@ class AICoachView(APIView):
                     'recommendation': "The AI Coach is currently offline (no Gemini API keys are configured in environment settings). Please configure GEMINI_API_KEY to activate it."
                 }, status=status.HTTP_200_OK)
             except Exception as e:
-                return Response({'error': str(e)}, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
+                return Response({'error': str(e)}, status=status.HTTP_400_BAD_REQUEST)
 
         elif action_type == 'chat':
             user_message = request.data.get('message', '').strip()
@@ -442,7 +442,7 @@ class AICoachView(APIView):
                     'recommendation': "The AI Coach is currently offline (no Gemini API keys are configured in environment settings). Please configure GEMINI_API_KEY to activate it."
                 }, status=status.HTTP_200_OK)
             except Exception as e:
-                return Response({'error': str(e)}, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
+                return Response({'error': str(e)}, status=status.HTTP_400_BAD_REQUEST)
 
         return Response({'error': 'Invalid action'}, status=status.HTTP_400_BAD_REQUEST)
 
@@ -499,9 +499,9 @@ class AIFoodEstimateView(APIView):
                 pass
             return Response({
                 'error': f"Failed to parse AI response as JSON: {response_text}"
-            }, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
+            }, status=status.HTTP_400_BAD_REQUEST)
         except Exception as e:
-            return Response({'error': str(e)}, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
+            return Response({'error': str(e)}, status=status.HTTP_400_BAD_REQUEST)
 
 
 class FavoriteFoodView(APIView):
