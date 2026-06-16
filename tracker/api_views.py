@@ -292,20 +292,22 @@ class FoodSaveView(APIView):
 
 
 def generate_gemini_content(prompt):
-    keys = []
-    primary = os.getenv("GEMINI_API_KEY")
-    if primary:
-        keys.append(primary)
-        
-    extra_keys = []
+    keys_dict = {}
     for env_name, env_val in os.environ.items():
-        if env_name.startswith("GEMINI_API_KEY_") and env_val:
-            extra_keys.append((env_name, env_val))
-            
-    # Sort logically so GEMINI_API_KEY_2 comes before GEMINI_API_KEY_10
+        if env_name.startswith("GEMINI_API_KEY") and env_val:
+            keys_dict[env_name] = env_val
+
+    ordered_keys = []
+    primary = keys_dict.pop("GEMINI_API_KEY", None)
+    if primary:
+        ordered_keys.append(primary)
+        
+    extra_keys = list(keys_dict.items())
+    
     def get_sort_key(item):
         name = item[0]
-        suffix = name[len("GEMINI_API_KEY_"):]
+        suffix = name[len("GEMINI_API_KEY"):]
+        suffix = suffix.lstrip("_")
         if suffix.isdigit():
             return (0, int(suffix))
         return (1, name)
