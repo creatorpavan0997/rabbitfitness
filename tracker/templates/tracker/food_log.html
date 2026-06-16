@@ -92,7 +92,8 @@
                 <button type="button" class="btn btn-outline-primary btn-sm" data-bs-toggle="modal" data-bs-target="#add-favorite-modal">➕ Add Custom Favorite</button>
             </div>
             <p class="text-muted small mb-3">Quickly log your frequently eaten foods by clicking one of the meal buttons.</p>
-            <div class="table-responsive">
+            <!-- Desktop Table view (Hidden on Mobile) -->
+            <div class="table-responsive d-none d-md-block">
                 <table class="table table-hover text-white align-middle" style="color: var(--text-main) !important;">
                     <thead>
                         <tr class="text-muted border-secondary">
@@ -112,6 +113,11 @@
                         </tr>
                     </tbody>
                 </table>
+            </div>
+
+            <!-- Mobile Card view (Hidden on Desktop) -->
+            <div id="favorites-mobile-container" class="d-block d-md-none">
+                <!-- Populated dynamically by JS -->
             </div>
         </div>
     </div>
@@ -245,14 +251,21 @@
         try {
             const list = await apiRequest('/api/food/favorite/');
             const tbody = document.getElementById('favorites-table-body');
+            const mobileContainer = document.getElementById('favorites-mobile-container');
+            
             tbody.innerHTML = '';
+            mobileContainer.innerHTML = '';
+            
+            const emptyMsg = "No favorite foods saved yet. Click the ⭐ icon next to today's logged foods to save them here.";
             
             if (list.length === 0) {
-                tbody.innerHTML = `<tr><td colspan="8" class="text-center text-muted small py-4">No favorite foods saved yet. Click the ⭐ icon next to today's logged foods to save them here.</td></tr>`;
+                tbody.innerHTML = `<tr><td colspan="8" class="text-center text-muted small py-4">${emptyMsg}</td></tr>`;
+                mobileContainer.innerHTML = `<p class="text-muted text-center py-4 small">${emptyMsg}</p>`;
                 return;
             }
             
             list.forEach(food => {
+                // Desktop Table row
                 const tr = document.createElement('tr');
                 tr.className = 'border-secondary';
                 tr.innerHTML = `
@@ -275,6 +288,37 @@
                     </td>
                 `;
                 tbody.appendChild(tr);
+
+                // Mobile Card item
+                const card = document.createElement('div');
+                card.className = 'mobile-food-card p-3 mb-3 rounded-4';
+                card.style.backgroundColor = 'var(--bg-card)';
+                card.style.border = 'var(--card-border)';
+                card.innerHTML = `
+                    <div class="d-flex justify-content-between align-items-start mb-2">
+                        <div>
+                            <h6 class="fw-bold mb-0 glow-name">${food.name}</h6>
+                            <small class="text-muted">${food.serving_size}</small>
+                        </div>
+                        <button type="button" class="btn btn-sm btn-outline-danger border-0 p-1" onclick="removeFavorite(${food.id})">✕</button>
+                    </div>
+                    <div class="row text-center mb-3 g-1 small">
+                        <div class="col-3"><strong class="text-primary">${Math.round(food.calories)}</strong><br><span class="text-muted" style="font-size: 0.7rem;">kcal</span></div>
+                        <div class="col-3"><strong class="text-success">${Math.round(food.protein)}g</strong><br><span class="text-muted" style="font-size: 0.7rem;">Prot</span></div>
+                        <div class="col-3"><strong class="text-warning">${Math.round(food.carbs)}g</strong><br><span class="text-muted" style="font-size: 0.7rem;">Carb</span></div>
+                        <div class="col-3"><strong class="text-danger">${Math.round(food.fat)}g</strong><br><span class="text-muted" style="font-size: 0.7rem;">Fat</span></div>
+                    </div>
+                    <div class="d-flex justify-content-between align-items-center">
+                        <span class="small text-muted fw-semibold">Quick Log:</span>
+                        <div class="btn-group btn-group-sm" role="group">
+                            <button type="button" class="btn btn-outline-primary px-2 py-1" onclick="quickLogFavorite(${food.id}, 'breakfast')">🍳 B</button>
+                            <button type="button" class="btn btn-outline-success px-2 py-1" onclick="quickLogFavorite(${food.id}, 'lunch')">🥪 L</button>
+                            <button type="button" class="btn btn-outline-warning px-2 py-1" onclick="quickLogFavorite(${food.id}, 'dinner')">🍗 D</button>
+                            <button type="button" class="btn btn-outline-secondary px-2 py-1" onclick="quickLogFavorite(${food.id}, 'snack')">🍿 S</button>
+                        </div>
+                    </div>
+                `;
+                mobileContainer.appendChild(card);
             });
         } catch (err) {
             console.error("Failed to load favorites:", err);
