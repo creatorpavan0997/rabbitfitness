@@ -320,11 +320,11 @@ class AICoachView(APIView):
         system_instruction = (
             f"You are a premium Rabbit Fitness & Nutrition Coach. The user is a {profile.gender or 'person'} "
             f"who is {profile.age or 25} years old, {profile.height or 175}cm tall, weighing {goal.current_weight or 70}kg. "
-            f"Their primary goal is {goal.get_goal_type_display()}. Their target weight is {goal.target_weight}kg. "
-            f"Their daily targets are: {goal.daily_calorie_goal} calories, {goal.daily_protein_goal}g protein, "
-            f"{goal.daily_carbs_goal}g carbs, {goal.daily_fats_goal}g fats, and {goal.daily_water_goal}ml water. "
-            f"Provide concise, highly professional, supportive, and scientifically sound responses. "
-            f"Format response beautifully in Markdown with bold key figures and bullet points."
+            f"Their goal: {goal.get_goal_type_display()} (target: {goal.target_weight}kg). "
+            f"Targets: {goal.daily_calorie_goal} kcal, {goal.daily_protein_goal}g protein, {goal.daily_carbs_goal}g carbs, {goal.daily_fats_goal}g fats. "
+            f"CRITICAL: Keep your response extremely short, simple, easy-to-read, and directly to the point. "
+            f"Do not write long paragraphs or use fluff/pleasantries. Limit your entire response to 3-4 sentences total or a few short bullet points. "
+            f"Format response with bold figures."
         )
 
         if action_type == 'analyze':
@@ -357,8 +357,7 @@ class AICoachView(APIView):
                 f"Fat Goal: {goal.daily_fats_goal}g | Consumed: {fat_in}g\n"
                 f"Water Goal: {goal.daily_water_goal}ml | Consumed: {water_in}ml\n\n"
                 f"Meals Eaten Today:\n{meals_consumed}\n\n"
-                f"Provide direct, constructive feedback on my today's intake. Highlight if I met my protein goal, "
-                f"give meal suggestions for remainder of the day if I am under, and provide one key tip."
+                f"Provide direct, constructive feedback on my today's intake. Keep it extremely brief (max 3 sentences)."
             )
             
             try:
@@ -383,7 +382,7 @@ class AICoachView(APIView):
             prompt = (
                 f"{system_instruction}\n\n"
                 f"The user asks: '{user_message}'\n\n"
-                f"Answer the question using their fitness profile and targets for context."
+                f"Answer the question using their fitness profile and targets for context. Be direct, brief, and to the point (max 3 sentences)."
             )
             
             try:
