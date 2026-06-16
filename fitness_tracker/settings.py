@@ -136,3 +136,14 @@ REST_FRAMEWORK = {
 CORS_ALLOW_ALL_ORIGINS = True
 CORS_ALLOW_CREDENTIALS = True
 
+# Session Persistence and Security Settings
+SESSION_COOKIE_AGE = 1209600  # Keep users logged in for 2 weeks
+SESSION_EXPIRE_AT_BROWSER_CLOSE = False  # Keep session when browser is closed
+SESSION_SAVE_EVERY_REQUEST = True  # Extend expiration on every request
+
+# Cookie Security (Secure HTTPS in production, standard HTTP on localhost)
+SESSION_COOKIE_SECURE = not DEBUG
+CSRF_COOKIE_SECURE = not DEBUG
+SESSION_COOKIE_HTTPONLY = True
+
+
