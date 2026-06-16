@@ -212,7 +212,29 @@
         } catch (err) {
             loader.classList.add('d-none');
             submitBtn.disabled = false;
-            errorMsg.textContent = `AI Error: ${err.message}`;
+            
+            // Check if error suggests quota limits, API key issue, or general server/request limit
+            const errMsg = err.message || '';
+            const isLimitOrQuota = errMsg.toLowerCase().includes('quota') || 
+                                   errMsg.toLowerCase().includes('limit') || 
+                                   errMsg.toLowerCase().includes('key') || 
+                                   errMsg.toLowerCase().includes('500') || 
+                                   errMsg.toLowerCase().includes('400') ||
+                                   errMsg.toLowerCase().includes('status');
+                                   
+            if (isLimitOrQuota) {
+                errorMsg.className = "mt-3 text-center";
+                errorMsg.innerHTML = `
+                    <div class="alert alert-warning border border-warning border-opacity-25 rounded-3 text-start shadow-sm mb-0 p-3" style="background-color: rgba(255, 193, 7, 0.1);">
+                        <div class="fw-bold mb-1" style="color: #ffc107;">⚠️ AI key quota limit reached.</div>
+                        <p class="mb-2 text-white small opacity-75">Please use our 🥕 Carrot Estimator which is 100% free and runs offline!</p>
+                        <a href="/carrot/" class="btn btn-warning btn-sm w-100 fw-bold py-2" style="color: #121212;">Use 🥕 Carrot Estimator</a>
+                    </div>
+                `;
+            } else {
+                errorMsg.className = "text-danger small mt-2 text-center";
+                errorMsg.textContent = `AI Error: ${err.message}`;
+            }
             errorMsg.classList.remove('d-none');
         }
     });

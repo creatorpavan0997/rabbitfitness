@@ -10,6 +10,8 @@ from rest_framework.decorators import action
 import os
 import json
 import google.generativeai as genai
+import re
+import difflib
 
 from .models import FoodLog, WeightLog, WaterLog, FoodItem, FitnessGoal, AIRecommendation, UserProfile, DailyRoutine, DietMeal, DailyDietCheck
 from .serializers import (
@@ -504,6 +506,168 @@ class AIFoodEstimateView(APIView):
             }, status=status.HTTP_400_BAD_REQUEST)
         except Exception as e:
             return Response({'error': str(e)}, status=status.HTTP_400_BAD_REQUEST)
+
+
+CARROT_FOOD_DB = {
+    'oats': {'calories': 389, 'protein': 16.9, 'carbs': 66.3, 'fat': 6.9, 'default_unit': 'g'},
+    'milk': {'calories': 42, 'protein': 3.4, 'carbs': 5.0, 'fat': 1.0, 'default_unit': 'ml'},
+    'banana': {'calories': 89, 'protein': 1.1, 'carbs': 22.8, 'fat': 0.3, 'default_unit': 'piece', 'unit_weight': 100},
+    'chicken breast': {'calories': 165, 'protein': 31.0, 'carbs': 0.0, 'fat': 3.6, 'default_unit': 'g'},
+    'chicken': {'calories': 165, 'protein': 31.0, 'carbs': 0.0, 'fat': 3.6, 'default_unit': 'g'},
+    'cooked rice': {'calories': 130, 'protein': 2.7, 'carbs': 28.0, 'fat': 0.3, 'default_unit': 'g'},
+    'rice': {'calories': 130, 'protein': 2.7, 'carbs': 28.0, 'fat': 0.3, 'default_unit': 'g'},
+    'dal': {'calories': 116, 'protein': 9.0, 'carbs': 20.0, 'fat': 0.4, 'default_unit': 'g'},
+    'lentils': {'calories': 116, 'protein': 9.0, 'carbs': 20.0, 'fat': 0.4, 'default_unit': 'g'},
+    'peanut butter': {'calories': 588, 'protein': 25.0, 'carbs': 20.0, 'fat': 50.0, 'default_unit': 'g', 'alt_units': {'tbsp': 15, 'spoon': 15}},
+    'roti': {'calories': 120, 'protein': 3.5, 'carbs': 24.0, 'fat': 0.4, 'default_unit': 'piece'},
+    'chapati': {'calories': 120, 'protein': 3.5, 'carbs': 24.0, 'fat': 0.4, 'default_unit': 'piece'},
+    'curd': {'calories': 98, 'protein': 11.0, 'carbs': 3.4, 'fat': 4.3, 'default_unit': 'g'},
+    'ghee': {'calories': 900, 'protein': 0.0, 'carbs': 0.0, 'fat': 100.0, 'default_unit': 'g', 'alt_units': {'tbsp': 15, 'spoon': 15}},
+    'soya chunks': {'calories': 345, 'protein': 52.0, 'carbs': 33.0, 'fat': 0.5, 'default_unit': 'g'},
+    'sweet corn': {'calories': 86, 'protein': 3.2, 'carbs': 19.0, 'fat': 1.2, 'default_unit': 'g'},
+    'corn': {'calories': 86, 'protein': 3.2, 'carbs': 19.0, 'fat': 1.2, 'default_unit': 'g'},
+    'egg white': {'calories': 52, 'protein': 11.0, 'carbs': 0.7, 'fat': 0.1, 'default_unit': 'piece', 'unit_weight': 33},
+    'chana': {'calories': 364, 'protein': 19.0, 'carbs': 61.0, 'fat': 6.0, 'default_unit': 'g'},
+    'chickpeas': {'calories': 364, 'protein': 19.0, 'carbs': 61.0, 'fat': 6.0, 'default_unit': 'g'},
+    'sprouts': {'calories': 30, 'protein': 3.0, 'carbs': 6.0, 'fat': 0.2, 'default_unit': 'g'},
+    'whey protein': {'calories': 120, 'protein': 24.0, 'carbs': 3.0, 'fat': 1.5, 'default_unit': 'scoop'},
+    'protein powder': {'calories': 120, 'protein': 24.0, 'carbs': 3.0, 'fat': 1.5, 'default_unit': 'scoop'},
+    'apple': {'calories': 52, 'protein': 0.3, 'carbs': 14.0, 'fat': 0.2, 'default_unit': 'piece', 'unit_weight': 150},
+    'egg': {'calories': 70, 'protein': 6.0, 'carbs': 0.6, 'fat': 5.0, 'default_unit': 'piece'},
+    'boiled egg': {'calories': 70, 'protein': 6.0, 'carbs': 0.6, 'fat': 5.0, 'default_unit': 'piece'},
+    'paneer': {'calories': 265, 'protein': 18.0, 'carbs': 1.2, 'fat': 20.0, 'default_unit': 'g'},
+    'bread': {'calories': 65, 'protein': 2.0, 'carbs': 12.0, 'fat': 1.0, 'default_unit': 'slice'},
+    'almonds': {'calories': 579, 'protein': 21.0, 'carbs': 22.0, 'fat': 49.0, 'default_unit': 'g'},
+}
+
+class CarrotEstimateView(APIView):
+    permission_classes = [permissions.IsAuthenticated]
+
+    def post(self, request):
+        text = request.data.get('text', '').strip()
+        if not text:
+            return Response({'error': 'Food description cannot be empty'}, status=status.HTTP_400_BAD_REQUEST)
+
+        lines = text.split('\n')
+        pattern = re.compile(
+            r'^\s*[\*\-\•]?\s*(\d+(?:\.\d+)?|\d+\/\d+)?\s*(g|ml|tbsp|cup|scoop|piece|slice|count|pcs|serving|servings|spoon|spoons)?s?\s+(.+)$',
+            re.IGNORECASE
+        )
+        
+        total_calories = 0.0
+        total_protein = 0.0
+        total_carbs = 0.0
+        total_fat = 0.0
+        parsed_items = []
+        
+        for line in lines:
+            line_clean = line.strip()
+            if not line_clean:
+                continue
+                
+            match = pattern.match(line_clean)
+            if match:
+                qty_str, unit, food_name = match.groups()
+                qty = 1.0
+                if qty_str:
+                    if '/' in qty_str:
+                        try:
+                            num, denom = qty_str.split('/')
+                            qty = float(num) / float(denom)
+                        except ValueError:
+                            qty = 1.0
+                    else:
+                        qty = float(qty_str)
+                        
+                food_name = food_name.strip().lower()
+                db_foods = list(CARROT_FOOD_DB.keys())
+                matches = difflib.get_close_matches(food_name, db_foods, n=1, cutoff=0.5)
+                
+                if matches:
+                    matched_food = matches[0]
+                    food_data = CARROT_FOOD_DB[matched_food]
+                    
+                    multiplier = 1.0
+                    default_unit = food_data['default_unit']
+                    
+                    if default_unit in ['g', 'ml']:
+                        if unit and unit.lower() in food_data.get('alt_units', {}):
+                            weight = food_data['alt_units'][unit.lower()]
+                            multiplier = (qty * weight) / 100.0
+                        elif unit and unit.lower() in ['piece', 'count', 'pcs'] and 'unit_weight' in food_data:
+                            weight = food_data['unit_weight']
+                            multiplier = (qty * weight) / 100.0
+                        else:
+                            multiplier = qty / 100.0
+                    else:
+                        if unit and unit.lower() in ['g', 'ml'] and 'unit_weight' in food_data:
+                            multiplier = qty / food_data['unit_weight']
+                        else:
+                            multiplier = qty
+                            
+                    cal = float(food_data['calories']) * multiplier
+                    prot = float(food_data['protein']) * multiplier
+                    carbs = float(food_data['carbs']) * multiplier
+                    fat = float(food_data['fat']) * multiplier
+                    
+                    total_calories += cal
+                    total_protein += prot
+                    total_carbs += carbs
+                    total_fat += fat
+                    
+                    parsed_items.append({
+                        'input_name': food_name,
+                        'matched_name': matched_food,
+                        'qty': qty,
+                        'unit': unit or default_unit,
+                        'calories': round(cal, 2),
+                        'protein': round(prot, 2),
+                        'carbs': round(carbs, 2),
+                        'fat': round(fat, 2)
+                    })
+            else:
+                food_name = line_clean.lower()
+                db_foods = list(CARROT_FOOD_DB.keys())
+                matches = difflib.get_close_matches(food_name, db_foods, n=1, cutoff=0.5)
+                if matches:
+                    matched_food = matches[0]
+                    food_data = CARROT_FOOD_DB[matched_food]
+                    
+                    default_unit = food_data['default_unit']
+                    multiplier = 1.0
+                    if default_unit in ['g', 'ml']:
+                        multiplier = 1.0
+                    else:
+                        multiplier = 1.0
+                        
+                    cal = float(food_data['calories']) * multiplier
+                    prot = float(food_data['protein']) * multiplier
+                    carbs = float(food_data['carbs']) * multiplier
+                    fat = float(food_data['fat']) * multiplier
+                    
+                    total_calories += cal
+                    total_protein += prot
+                    total_carbs += carbs
+                    total_fat += fat
+                    
+                    parsed_items.append({
+                        'input_name': food_name,
+                        'matched_name': matched_food,
+                        'qty': 100.0 if default_unit in ['g', 'ml'] else 1.0,
+                        'unit': default_unit,
+                        'calories': round(cal, 2),
+                        'protein': round(prot, 2),
+                        'carbs': round(carbs, 2),
+                        'fat': round(fat, 2)
+                    })
+
+        return Response({
+            'items': parsed_items,
+            'calories': round(total_calories, 2),
+            'protein': round(total_protein, 2),
+            'carbs': round(total_carbs, 2),
+            'fat': round(total_fat, 2)
+        }, status=status.HTTP_200_OK)
 
 
 class FavoriteFoodView(APIView):

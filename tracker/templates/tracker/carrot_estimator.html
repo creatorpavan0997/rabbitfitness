@@ -1,0 +1,240 @@
+{% extends 'tracker/base.html' %}
+{% block title %}Carrot Estimator | 🐰 Rabbit Fitness{% endblock %}
+
+{% block content %}
+<div class="row mb-4">
+    <div class="col-12">
+        <div class="glass-card py-4 d-flex flex-column flex-md-row justify-content-between align-items-md-center gap-3">
+            <div>
+                <h1 class="fw-bold mb-1">🥕 Carrot Food Estimator</h1>
+                <p class="text-muted mb-0">Our local, offline calorie parser. Fast, free, and always online even if AI limits are reached.</p>
+            </div>
+            <div>
+                <a href="{% url 'food_log' %}" class="btn btn-outline-secondary btn-sm px-3 py-2">
+                    📋 Go to Standard Food Log
+                </a>
+            </div>
+        </div>
+    </div>
+</div>
+
+<div class="row">
+    <!-- Input Form Card -->
+    <div class="col-lg-5 mb-4">
+        <div class="glass-card h-100 d-flex flex-column">
+            <h4 class="fw-bold mb-3 text-primary">📝 Describe Your Meal</h4>
+            <p class="text-muted small">Enter one food item per line with its quantity (e.g. 100g oats, 2 eggs, 1 tbsp ghee, 2 rotis).</p>
+            
+            <form id="carrot-estimator-form" class="flex-grow-1 d-flex flex-column gap-3">
+                <div>
+                    <label class="form-label text-muted small fw-semibold">Meal Category</label>
+                    <select id="meal-type-select" class="form-select" required>
+                        <option value="breakfast">Breakfast</option>
+                        <option value="lunch">Lunch</option>
+                        <option value="dinner">Dinner</option>
+                        <option value="snack">Snack</option>
+                    </select>
+                </div>
+                
+                <div class="flex-grow-1 d-flex flex-column">
+                    <label class="form-label text-muted small fw-semibold">Foods & Portions List</label>
+                    <textarea id="carrot-input-textarea" class="form-control flex-grow-1" rows="8" placeholder="e.g.&#10;100g oats&#10;2 eggs&#10;1 tbsp peanut butter&#10;1 banana" required style="font-family: monospace;"></textarea>
+                </div>
+                
+                <button type="submit" class="btn btn-primary w-100 py-3 fw-bold" id="btn-estimate">
+                    🥕 Estimate Nutrition
+                </button>
+            </form>
+        </div>
+    </div>
+    
+    <!-- Results / Output Preview Card -->
+    <div class="col-lg-7 mb-4">
+        <div class="glass-card h-100 d-flex flex-column justify-content-center align-items-center py-5 d-none" id="carrot-results-placeholder">
+            <span class="fs-1 mb-3">🥕</span>
+            <h5 class="fw-semibold text-muted">Estimate Results Preview</h5>
+            <p class="text-muted small max-width-350 text-center">Your parsed meals, matching database items, and macro splits will appear here after clicking Estimate.</p>
+        </div>
+        
+        <div class="glass-card h-100 d-flex flex-column d-none" id="carrot-results-container">
+            <h4 class="fw-bold mb-3 text-primary">📊 Nutrition Results Summary</h4>
+            
+            <!-- Macros Summary Row -->
+            <div class="row text-center g-2 mb-4">
+                <div class="col-6 col-md-3">
+                    <div class="p-3 bg-dark bg-opacity-25 rounded-4 border border-secondary border-opacity-10">
+                        <span class="text-muted small">Calories</span>
+                        <h3 class="fw-extrabold text-primary mb-0" id="total-kcal">0</h3>
+                        <span class="text-muted" style="font-size: 0.75rem;">kcal</span>
+                    </div>
+                </div>
+                <div class="col-6 col-md-3">
+                    <div class="p-3 bg-dark bg-opacity-25 rounded-4 border border-secondary border-opacity-10">
+                        <span class="text-muted small">Protein</span>
+                        <h3 class="fw-bold text-success mb-0" id="total-protein">0g</h3>
+                        <span class="text-muted" style="font-size: 0.75rem;">builders</span>
+                    </div>
+                </div>
+                <div class="col-6 col-md-3">
+                    <div class="p-3 bg-dark bg-opacity-25 rounded-4 border border-secondary border-opacity-10">
+                        <span class="text-muted small">Carbs</span>
+                        <h3 class="fw-bold text-warning mb-0" id="total-carbs">0g</h3>
+                        <span class="text-muted" style="font-size: 0.75rem;">energy</span>
+                    </div>
+                </div>
+                <div class="col-6 col-md-3">
+                    <div class="p-3 bg-dark bg-opacity-25 rounded-4 border border-secondary border-opacity-10">
+                        <span class="text-muted small">Fats</span>
+                        <h3 class="fw-bold text-danger mb-0" id="total-fat">0g</h3>
+                        <span class="text-muted" style="font-size: 0.75rem;">essential</span>
+                    </div>
+                </div>
+            </div>
+            
+            <!-- Parsed Foods Table -->
+            <div class="table-responsive flex-grow-1 mb-4" style="max-height: 250px; overflow-y: auto;">
+                <table class="table align-middle table-hover border-secondary border-opacity-10">
+                    <thead>
+                        <tr class="text-muted small">
+                            <th>Your Input</th>
+                            <th>Matched Database Item</th>
+                            <th>Qty</th>
+                            <th class="text-end">Calories</th>
+                            <th class="text-end">P / C / F</th>
+                        </tr>
+                    </thead>
+                    <tbody id="carrot-parsed-table-body">
+                        <!-- Populated by JS -->
+                    </tbody>
+                </table>
+            </div>
+            
+            <!-- Action Button to Log to Tracker -->
+            <div class="mt-auto pt-3 border-top border-secondary border-opacity-10">
+                <button class="btn btn-success w-100 py-3 fw-bold" id="btn-save-log">
+                    💾 Log Meal to Daily Food Tracker
+                </button>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}
+
+{% block scripts %}
+<script>
+    let parsedResults = null;
+
+    document.addEventListener('DOMContentLoaded', () => {
+        const placeholder = document.getElementById('carrot-results-placeholder');
+        const container = document.getElementById('carrot-results-container');
+        
+        // Initially show the placeholder
+        placeholder.classList.remove('d-none');
+        container.classList.add('d-none');
+    });
+
+    // Form submission to estimate calories
+    document.getElementById('carrot-estimator-form').addEventListener('submit', async (e) => {
+        e.preventDefault();
+        
+        const textVal = document.getElementById('carrot-input-textarea').value.trim();
+        const btn = document.getElementById('btn-estimate');
+        
+        btn.disabled = true;
+        btn.textContent = '🥕 Parsing Meals...';
+
+        try {
+            const results = await apiRequest('/api/food/carrot-estimate/', 'POST', {
+                text: textVal
+            });
+            
+            parsedResults = results;
+            renderResults();
+        } catch (error) {
+            console.error("Failed to estimate calories locally:", error);
+            alert(`Error: ${error.message || "Failed to parse meals locally."}`);
+        } finally {
+            btn.disabled = false;
+            btn.textContent = '🥕 Estimate Nutrition';
+        }
+    });
+
+    // Render results in table and cards
+    function renderResults() {
+        const placeholder = document.getElementById('carrot-results-placeholder');
+        const container = document.getElementById('carrot-results-container');
+        
+        placeholder.classList.add('d-none');
+        container.classList.remove('d-none');
+
+        // Set totals
+        document.getElementById('total-kcal').textContent = Math.round(parsedResults.calories);
+        document.getElementById('total-protein').textContent = `${Math.round(parsedResults.protein)}g`;
+        document.getElementById('total-carbs').textContent = `${Math.round(parsedResults.carbs)}g`;
+        document.getElementById('total-fat').textContent = `${Math.round(parsedResults.fat)}g`;
+
+        // Populate table body
+        const tbody = document.getElementById('carrot-parsed-table-body');
+        tbody.innerHTML = '';
+
+        if (parsedResults.items.length === 0) {
+            tbody.innerHTML = '<tr><td colspan="5" class="text-center text-muted py-3">No matching foods found in local database. Check spelling or quantities.</td></tr>';
+            return;
+        }
+
+        parsedResults.items.forEach(item => {
+            const tr = document.createElement('tr');
+            tr.innerHTML = `
+                <td><strong class="text-white">${item.input_name}</strong></td>
+                <td><span class="badge bg-primary rounded-pill glow-name">${item.matched_name}</span></td>
+                <td>${item.qty} ${item.unit}</td>
+                <td class="text-end fw-semibold text-white">${Math.round(item.calories)} kcal</td>
+                <td class="text-end">
+                    <span class="text-success fw-bold">${Math.round(item.protein)}g</span> /
+                    <span class="text-warning fw-bold">${Math.round(item.carbs)}g</span> /
+                    <span class="text-danger fw-bold">${Math.round(item.fat)}g</span>
+                </td>
+            `;
+            tbody.appendChild(tr);
+        });
+    }
+
+    // Save/Log the parsed items to database FoodLog
+    document.getElementById('btn-save-log').addEventListener('click', async () => {
+        if (!parsedResults || parsedResults.items.length === 0) return;
+        
+        const saveBtn = document.getElementById('btn-save-log');
+        const mealType = document.getElementById('meal-type-select').value;
+        
+        saveBtn.disabled = true;
+        saveBtn.textContent = '💾 Saving Logs...';
+
+        try {
+            // Loop through each item and log it to FoodLog
+            const promises = parsedResults.items.map(item => {
+                const mealTitle = item.matched_name.charAt(0).toUpperCase() + item.matched_name.slice(1);
+                return apiRequest('/api/food-log/', 'POST', {
+                    food_name: `Carrot: ${mealTitle} (${item.qty} ${item.unit})`,
+                    meal_type: mealType,
+                    quantity: 1.00,
+                    calories: item.calories,
+                    protein: item.protein,
+                    carbs: item.carbs,
+                    fat: item.fat
+                });
+            });
+
+            await Promise.all(promises);
+            
+            // Redirect to food log dashboard on success
+            alert("🎉 Meals successfully logged to your daily Food Tracker!");
+            window.location.href = "{% url 'food_log' %}";
+        } catch (error) {
+            console.error("Failed to log parsed foods:", error);
+            alert(`Error: ${error.message || "Failed to log food items."}`);
+            saveBtn.disabled = false;
+            saveBtn.textContent = '💾 Log Meal to Daily Food Tracker';
+        }
+    });
+</script>
+{% endblock %}

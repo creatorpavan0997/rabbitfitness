@@ -159,3 +159,52 @@ class DietPlanAPITests(APITestCase):
 
         check.refresh_from_db()
         self.assertIsNone(check.linked_log)
+
+
+class CarrotEstimateAPITests(APITestCase):
+    def setUp(self):
+        self.user = User.objects.create_user(username='carrot_user', password='password123')
+        self.client.force_authenticate(user=self.user)
+
+    def test_carrot_estimate_valid_input(self):
+        url = '/api/food/carrot-estimate/'
+        data = {
+            'text': "100g oats\n2 eggs\n1.5 tbsp ghee"
+        }
+        response = self.client.post(url, data, format='json')
+        self.assertEqual(response.status_code, status.HTTP_200_OK)
+        
+        # Verify response structure
+        self.assertIn('items', response.data)
+        self.assertIn('calories', response.data)
+        self.assertIn('protein', response.data)
+        self.assertIn('carbs', response.data)
+        self.assertIn('fat', response.data)
+        
+        # 100g oats -> calories: 389, protein: 16.9, carbs: 66.3, fat: 6.9
+        # 2 eggs -> calories: 70 * 2 = 140, protein: 6.0 * 2 = 12.0, carbs: 0.6 * 2 = 1.2, fat: 5.0 * 2 = 10.0
+        # 1.5 tbsp ghee -> default unit g, alt_units: tbsp = 15g. 1.5 tbsp = 22.5g.
+        # multiplier = 22.5 / 100.0 = 0.225.
+        # ghee 100g -> calories: 900, fat: 100.0
+        # 1.5 tbsp ghee -> calories: 900 * 0.225 = 202.5, fat: 100 * 0.225 = 22.5
+        # Total calories estimated: 389 + 140 + 202.5 = 731.5
+        # Total protein: 16.9 + 12.0 = 28.9
+        # Total carbs: 66.3 + 1.2 = 67.5
+        # Total fat: 6.9 + 10.0 + 22.5 = 39.4
+        
+        self.assertEqual(response.data['calories'], 731.5)
+        self.assertEqual(response.data['protein'], 28.9)
+        self.assertEqual(response.data['carbs'], 67.5)
+        self.assertEqual(response.data['fat'], 39.4)
+        
+        items = response.data['items']
+        self.assertEqual(len(items), 3)
+        self.assertEqual(items[0]['matched_name'], 'oats')
+        self.assertEqual(items[1]['matched_name'], 'egg')
+        self.assertEqual(items[2]['matched_name'], 'ghee')
+
+    def test_carrot_estimate_empty_input(self):
+        url = '/api/food/carrot-estimate/'
+        response = self.client.post(url, {'text': ''}, format='json')
+        self.assertEqual(response.status_code, status.HTTP_400_BAD_REQUEST)
+

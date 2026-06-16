@@ -41,6 +41,9 @@
                             <a class="nav-link px-3 {% if request.resolver_match.url_name == 'cooking_timer' %}active{% endif %}" href="{% url 'cooking_timer' %}">🍳 Timer</a>
                         </li>
                         <li class="nav-item">
+                            <a class="nav-link px-3 {% if request.resolver_match.url_name == 'carrot_estimator' %}active{% endif %}" href="{% url 'carrot_estimator' %}">🥕 Carrot</a>
+                        </li>
+                        <li class="nav-item">
                             <a class="nav-link px-3 {% if request.resolver_match.url_name == 'water_tracker' %}active{% endif %}" href="{% url 'water_tracker' %}">Water Log</a>
                         </li>
                         <li class="nav-item">

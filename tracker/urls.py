@@ -30,6 +30,7 @@ urlpatterns = [
     path('ai-coach/', views.ai_coach_view, name='ai_coach'),
     path('diet-plan/', views.diet_plan_view, name='diet_plan'),
     path('cooking-timer/', views.cooking_timer_view, name='cooking_timer'),
+    path('carrot/', views.carrot_estimator_view, name='carrot_estimator'),
     
     # Password Reset URLs
     path('password-reset/', auth_views.PasswordResetView.as_view(
@@ -53,6 +54,7 @@ urlpatterns = [
     path('api/food/search/', api_views.FoodSearchView.as_view(), name='api_food_search'),
     path('api/food/save-food/', api_views.FoodSaveView.as_view(), name='api_food_save'),
     path('api/food/ai-estimate/', api_views.AIFoodEstimateView.as_view(), name='api_food_ai_estimate'),
+    path('api/food/carrot-estimate/', api_views.CarrotEstimateView.as_view(), name='api_food_carrot_estimate'),
     path('api/food/favorite/', api_views.FavoriteFoodView.as_view(), name='api_food_favorite'),
     path('api/ai-coach/', api_views.AICoachView.as_view(), name='api_ai_coach'),
 ]

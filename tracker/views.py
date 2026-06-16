@@ -80,6 +80,10 @@ def diet_plan_view(request):
 def cooking_timer_view(request):
     return render(request, 'tracker/cooking_timer.html')
 
+@login_required
+def carrot_estimator_view(request):
+    return render(request, 'tracker/carrot_estimator.html')
+
 def logout_view(request):
     logout(request)
     messages.info(request, "You have been logged out.")
