@@ -317,47 +317,54 @@ class AICoachView(APIView):
         genai.configure(api_key=api_key)
         model = genai.GenerativeModel('gemini-flash-latest')
 
+        # Collect today's data to provide full context to the AI Coach
+        today = timezone.localdate()
+        food_logs = FoodLog.objects.filter(user=user, logged_at__date=today)
+        water_log = WaterLog.objects.filter(user=user, logged_at=today).first()
+        
+        totals = food_logs.aggregate(
+            c=Sum('calories'), p=Sum('protein'), ch=Sum('carbs'), f=Sum('fat')
+        )
+        
+        cal_in = float(totals['c'] or 0)
+        prot_in = float(totals['p'] or 0)
+        carb_in = float(totals['ch'] or 0)
+        fat_in = float(totals['f'] or 0)
+        water_in = water_log.amount if water_log else 0
+
+        meal_list = []
+        for fl in food_logs:
+            meal_list.append(f"- {fl.food_name} ({fl.quantity}x {fl.meal_type}): {fl.calories} kcal, {fl.protein}g P, {fl.carbs}g C, {fl.fat}g F")
+        meals_consumed = "\n".join(meal_list) if meal_list else "None logged yet."
+
         system_instruction = (
             f"You are a premium Rabbit Fitness & Nutrition Coach. The user is a {profile.gender or 'person'} "
             f"who is {profile.age or 25} years old, {profile.height or 175}cm tall, weighing {goal.current_weight or 70}kg. "
-            f"Their goal: {goal.get_goal_type_display()} (target: {goal.target_weight}kg). "
-            f"Targets: {goal.daily_calorie_goal} kcal, {goal.daily_protein_goal}g protein, {goal.daily_carbs_goal}g carbs, {goal.daily_fats_goal}g fats. "
-            f"CRITICAL: Keep your response extremely short, simple, easy-to-read, and directly to the point. "
-            f"Do not write long paragraphs or use fluff/pleasantries. Limit your entire response to 3-4 sentences total or a few short bullet points. "
-            f"Format response with bold figures."
+            f"Their goal is {goal.get_goal_type_display()} (target weight: {goal.target_weight}kg).\n\n"
+            f"User's Daily Targets:\n"
+            f"- Calories: {goal.daily_calorie_goal} kcal\n"
+            f"- Protein: {goal.daily_protein_goal}g\n"
+            f"- Carbs: {goal.daily_carbs_goal}g\n"
+            f"- Fats: {goal.daily_fats_goal}g\n"
+            f"- Water: {goal.daily_water_goal}ml\n\n"
+            f"User's Actual Intake Today ({today.strftime('%Y-%m-%d')}):\n"
+            f"- Calories Consumed: {cal_in} kcal\n"
+            f"- Protein Consumed: {prot_in}g\n"
+            f"- Carbs Consumed: {carb_in}g\n"
+            f"- Fats Consumed: {fat_in}g\n"
+            f"- Water Consumed: {water_in}ml\n"
+            f"Meals Logged Today:\n{meals_consumed}\n\n"
+            f"INSTRUCTIONS:\n"
+            f"- Be a supportive, expert, and conversational coach.\n"
+            f"- Always use the user's actual intake and targets to provide personalized advice.\n"
+            f"- Explain details fully, clarify user doubts, and discuss their logs naturally. Avoid empty pleasantries and fluff.\n"
+            f"- Keep responses structured, concise, and highly informative, using bold figures and formatting for readability. Do not cut responses off too short."
         )
 
         if action_type == 'analyze':
-            # Collect today's data
-            today = timezone.localdate()
-            food_logs = FoodLog.objects.filter(user=user, logged_at__date=today)
-            water_log = WaterLog.objects.filter(user=user, logged_at=today).first()
-            
-            totals = food_logs.aggregate(
-                c=Sum('calories'), p=Sum('protein'), ch=Sum('carbs'), f=Sum('fat')
-            )
-            
-            cal_in = float(totals['c'] or 0)
-            prot_in = float(totals['p'] or 0)
-            carb_in = float(totals['ch'] or 0)
-            fat_in = float(totals['f'] or 0)
-            water_in = water_log.amount if water_log else 0
-
-            meal_list = []
-            for fl in food_logs:
-                meal_list.append(f"- {fl.food_name} ({fl.quantity}x {fl.meal_type}): {fl.calories} kcal, {fl.protein}g P, {fl.carbs}g C, {fl.fat}g F")
-            meals_consumed = "\n".join(meal_list) if meal_list else "None logged yet."
-
             prompt = (
                 f"{system_instruction}\n\n"
-                f"Please analyze my nutrition logs for today, {today.strftime('%Y-%m-%d')}:\n"
-                f"Daily Goal: {goal.daily_calorie_goal} kcal | Consumed: {cal_in} kcal\n"
-                f"Protein Goal: {goal.daily_protein_goal}g | Consumed: {prot_in}g\n"
-                f"Carbs Goal: {goal.daily_carbs_goal}g | Consumed: {carb_in}g\n"
-                f"Fat Goal: {goal.daily_fats_goal}g | Consumed: {fat_in}g\n"
-                f"Water Goal: {goal.daily_water_goal}ml | Consumed: {water_in}ml\n\n"
-                f"Meals Eaten Today:\n{meals_consumed}\n\n"
-                f"Provide direct, constructive feedback on my today's intake. Keep it extremely brief (max 3 sentences)."
+                f"Please analyze my nutrition logs for today and provide a structured, complete feedback summary on my intake, including what targets I met/missed, meal suggestions if needed, and one key advice tip."
             )
             
             try:
@@ -381,8 +388,8 @@ class AICoachView(APIView):
             
             prompt = (
                 f"{system_instruction}\n\n"
-                f"The user asks: '{user_message}'\n\n"
-                f"Answer the question using their fitness profile and targets for context. Be direct, brief, and to the point (max 3 sentences)."
+                f"The user says: '{user_message}'\n\n"
+                f"Discuss and respond to this message. Clarify doubts, give details from their logs if relevant, and chat normally to assist them."
             )
             
             try:
