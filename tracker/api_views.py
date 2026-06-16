@@ -291,6 +291,30 @@ class FoodSaveView(APIView):
         return Response(FoodItemSerializer(food_item).data, status=status.HTTP_201_CREATED)
 
 
+def generate_gemini_content(prompt):
+    keys = [
+        os.getenv("GEMINI_API_KEY"),
+        os.getenv("GEMINI_API_KEY_2"),
+        os.getenv("GEMINI_API_KEY_3")
+    ]
+    valid_keys = [k for k in keys if k]
+    if not valid_keys:
+        raise ValueError("No Gemini API keys are configured in environment settings.")
+
+    last_error = None
+    for i, key in enumerate(valid_keys):
+        try:
+            genai.configure(api_key=key)
+            model = genai.GenerativeModel('gemini-flash-latest')
+            response = model.generate_content(prompt)
+            return response
+        except Exception as e:
+            last_error = e
+            print(f"Gemini API key {i+1} failed: {str(e)}")
+            continue
+    raise last_error
+
+
 class AICoachView(APIView):
     permission_classes = [permissions.IsAuthenticated]
 
@@ -305,17 +329,6 @@ class AICoachView(APIView):
         # Get user settings
         profile, _ = UserProfile.objects.get_or_create(user=user)
         goal, _ = FitnessGoal.objects.get_or_create(user=user)
-
-        # Get API Key
-        api_key = os.getenv("GEMINI_API_KEY")
-        if not api_key:
-            return Response({
-                'recommendation': "The AI Coach is currently offline (Gemini API key is not configured in `.env`). Please contact your administrator or set up a GEMINI_API_KEY to activate it."
-            }, status=status.HTTP_200_OK)
-
-        # Configure Generative AI
-        genai.configure(api_key=api_key)
-        model = genai.GenerativeModel('gemini-flash-latest')
 
         # Collect today's data to provide full context to the AI Coach
         today = timezone.localdate()
@@ -368,7 +381,7 @@ class AICoachView(APIView):
             )
             
             try:
-                response = model.generate_content(prompt)
+                response = generate_gemini_content(prompt)
                 text = response.text
                 
                 # Save recommendation
@@ -378,6 +391,10 @@ class AICoachView(APIView):
                     recommendation_text=text
                 )
                 return Response({'recommendation': text})
+            except ValueError as ve:
+                return Response({
+                    'recommendation': "The AI Coach is currently offline (no Gemini API keys are configured in environment settings). Please configure GEMINI_API_KEY to activate it."
+                }, status=status.HTTP_200_OK)
             except Exception as e:
                 return Response({'error': str(e)}, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
 
@@ -393,7 +410,7 @@ class AICoachView(APIView):
             )
             
             try:
-                response = model.generate_content(prompt)
+                response = generate_gemini_content(prompt)
                 text = response.text
                 
                 AIRecommendation.objects.create(
@@ -402,6 +419,10 @@ class AICoachView(APIView):
                     recommendation_text=text
                 )
                 return Response({'recommendation': text})
+            except ValueError as ve:
+                return Response({
+                    'recommendation': "The AI Coach is currently offline (no Gemini API keys are configured in environment settings). Please configure GEMINI_API_KEY to activate it."
+                }, status=status.HTTP_200_OK)
             except Exception as e:
                 return Response({'error': str(e)}, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
 
@@ -415,16 +436,6 @@ class AIFoodEstimateView(APIView):
         if not text:
             return Response({'error': 'Food description cannot be empty'}, status=status.HTTP_400_BAD_REQUEST)
 
-        api_key = os.getenv("GEMINI_API_KEY")
-        if not api_key:
-            return Response({
-                'error': 'Gemini API key is not configured in `.env`.'
-            }, status=status.HTTP_400_BAD_REQUEST)
-
-        # Configure Generative AI
-        genai.configure(api_key=api_key)
-        model = genai.GenerativeModel('gemini-flash-latest')
-
         prompt = (
             "You are a professional nutritionist. Estimate the nutritional values of the food description provided. "
             "Respond ONLY with a valid raw JSON object. Do not include markdown code block formatting (such as ```json ... ```) or any explanation. "
@@ -436,7 +447,7 @@ class AIFoodEstimateView(APIView):
         )
 
         try:
-            response = model.generate_content(prompt)
+            response = generate_gemini_content(prompt)
             resp_text = response.text.strip()
             
             # Clean markdown code block wraps if model generates them anyway
@@ -458,9 +469,18 @@ class AIFoodEstimateView(APIView):
                     raise KeyError(f"Missing key: {key}")
             
             return Response(data)
-        except json.JSONDecodeError:
+        except ValueError as ve:
             return Response({
-                'error': f"Failed to parse AI response as JSON: {response.text[:200]}"
+                'error': 'No Gemini API keys are configured in environment settings.'
+            }, status=status.HTTP_400_BAD_REQUEST)
+        except json.JSONDecodeError:
+            response_text = ""
+            try:
+                response_text = response.text[:200]
+            except Exception:
+                pass
+            return Response({
+                'error': f"Failed to parse AI response as JSON: {response_text}"
             }, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
         except Exception as e:
             return Response({'error': str(e)}, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
