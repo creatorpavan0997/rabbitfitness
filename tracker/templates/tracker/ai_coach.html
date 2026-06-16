@@ -1,0 +1,160 @@
+{% extends 'tracker/base.html' %}
+{% block title %}🐰 Rabbit Fitness Coach | Rabbit Fitness{% endblock %}
+{% block content %}
+<div class="row">
+    <!-- Chat Coach Area -->
+    <div class="col-lg-8 mb-4">
+        <div class="glass-card d-flex flex-column" style="height: 600px;">
+            <div class="d-flex justify-content-between align-items-center mb-3 pb-2 border-bottom">
+                <div class="d-flex align-items-center gap-2">
+                    <span class="fs-4">🐰</span>
+                    <div>
+                        <h4 class="fw-bold mb-0 text-primary">Rabbit Fitness Coach</h4>
+                        <small class="text-muted">Ask anything about meals, protein, routines, or targets</small>
+                    </div>
+                </div>
+                <!-- Action button to run quick analysis of today's nutrition logs -->
+                <button type="button" class="btn btn-outline-primary btn-sm px-3" id="btn-analyze-today">
+                    📊 Analyze Today's Log
+                </button>
+            </div>
+            
+            <!-- Chat Logs Container -->
+            <div class="chat-container flex-grow-1" id="chat-logs">
+                <div class="message-bubble coach">
+                    Hello! I am your Rabbit Fitness & Nutrition Coach. How can I help you today? You can ask me to analyze your meal progress, recommend clean protein sources, or give meal suggestions!
+                </div>
+            </div>
+
+            <!-- Loader indicator -->
+            <div class="d-flex align-items-center gap-2 p-2 d-none" id="chat-loader">
+                <span class="spinner-grow spinner-grow-sm text-primary" role="status" aria-hidden="true"></span>
+                <span class="text-muted small">Coach is formulating a response...</span>
+            </div>
+
+            <!-- Chat input form -->
+            <form id="chat-input-form" class="d-flex gap-2 mt-3 pt-2 border-top">
+                <input type="text" id="chat-message-input" class="form-control flex-grow-1" placeholder="Type your fitness question here..." required autocomplete="off">
+                <button type="submit" class="btn btn-primary px-4">Send</button>
+            </form>
+        </div>
+    </div>
+
+    <!-- Sidebar Recommendations History -->
+    <div class="col-lg-4">
+        <div class="glass-card h-100 d-flex flex-column" style="max-height: 600px; overflow-y: auto;">
+            <h4 class="fw-bold mb-3">📋 Recent Advice Logs</h4>
+            <p class="text-muted small">History of generated reports and fitness questions.</p>
+            <div class="list-group list-group-flush bg-transparent" id="recommendations-history-list">
+                <p class="text-muted small py-3 text-center">No logs generated yet.</p>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}
+
+{% block scripts %}
+<script>
+    const chatLogs = document.getElementById('chat-logs');
+    const chatInputForm = document.getElementById('chat-input-form');
+    const chatMessageInput = document.getElementById('chat-message-input');
+    const chatLoader = document.getElementById('chat-loader');
+    const btnAnalyze = document.getElementById('btn-analyze-today');
+    const historyList = document.getElementById('recommendations-history-list');
+
+    // Load recommendations history
+    async function loadRecommendationsHistory() {
+        try {
+            const list = await apiRequest('/api/ai-coach/');
+            historyList.innerHTML = '';
+            
+            if (list.length === 0) {
+                historyList.innerHTML = `<p class="text-muted small py-3 text-center">No logs generated yet.</p>`;
+                return;
+            }
+
+            list.forEach(item => {
+                const btn = document.createElement('button');
+                btn.type = 'button';
+                btn.className = 'list-group-item list-group-item-action bg-transparent border-0 border-bottom border-secondary text-white py-3 px-0';
+                btn.innerHTML = `
+                    <div class="d-flex justify-content-between align-items-center mb-1">
+                        <strong class="text-primary text-truncate w-75 d-inline-block glow-name">${item.input_query}</strong>
+                        <small class="text-muted" style="font-size: 0.75rem;">${new Date(item.created_at).toLocaleDateString()}</small>
+                    </div>
+                    <div class="text-muted small text-truncate" style="color: var(--text-muted) !important;">${item.recommendation_text}</div>
+                `;
+                btn.addEventListener('click', () => {
+                    // Inject this advice directly into the chat log as a coach message
+                    appendMessage('user', `Retrieve Advice: ${item.input_query}`);
+                    appendMessage('coach', item.recommendation_text);
+                });
+                historyList.appendChild(btn);
+            });
+        } catch (err) {
+            console.error("Failed to load advice logs:", err);
+        }
+    }
+
+    // Append message to Chat
+    function appendMessage(sender, text) {
+        const div = document.createElement('div');
+        div.className = `message-bubble ${sender}`;
+        
+        if (sender === 'coach') {
+            // Render markdown formatted HTML
+            div.innerHTML = parseMarkdown(text);
+        } else {
+            div.textContent = text;
+        }
+        
+        chatLogs.appendChild(div);
+        chatLogs.scrollTop = chatLogs.scrollHeight;
+    }
+
+    // Handle user question send
+    chatInputForm.addEventListener('submit', async (e) => {
+        e.preventDefault();
+        const msg = chatMessageInput.value.trim();
+        if (!msg) return;
+
+        appendMessage('user', msg);
+        chatMessageInput.value = '';
+        chatLoader.classList.remove('d-none');
+
+        try {
+            const data = await apiRequest('/api/ai-coach/', 'POST', {
+                action: 'chat',
+                message: msg
+            });
+            chatLoader.classList.add('d-none');
+            appendMessage('coach', data.recommendation);
+            loadRecommendationsHistory();
+        } catch (err) {
+            chatLoader.classList.add('d-none');
+            appendMessage('coach', `Error: ${err.message}`);
+        }
+    });
+
+    // Handle daily logs analyze action
+    btnAnalyze.addEventListener('click', async () => {
+        appendMessage('user', "Please analyze my nutrition logs for today.");
+        chatLoader.classList.remove('d-none');
+
+        try {
+            const data = await apiRequest('/api/ai-coach/', 'POST', {
+                action: 'analyze'
+            });
+            chatLoader.classList.add('d-none');
+            appendMessage('coach', data.recommendation);
+            loadRecommendationsHistory();
+        } catch (err) {
+            chatLoader.classList.add('d-none');
+            appendMessage('coach', `Error: ${err.message}`);
+        }
+    });
+
+    // Initialize state
+    loadRecommendationsHistory();
+</script>
+{% endblock %}

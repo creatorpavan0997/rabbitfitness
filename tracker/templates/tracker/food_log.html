@@ -1,0 +1,402 @@
+{% extends 'tracker/base.html' %}
+{% block title %}Track Meals | Rabbit Fitness{% endblock %}
+{% block content %}
+<div class="row">
+    <!-- Logged Meals List (Today's Logs) -->
+    <div class="col-lg-7 mb-4">
+        <div class="glass-card">
+            <div class="d-flex justify-content-between align-items-center mb-4">
+                <h3 class="fw-bold mb-0">🍽️ Today's Food Logs</h3>
+                <span class="badge bg-primary px-3 py-2 fs-6" id="total-kcal-badge">0 kcal</span>
+            </div>
+            
+            <div id="meals-container">
+                <!-- Breakfast -->
+                <div class="meal-section mb-4">
+                    <h5 class="fw-bold text-primary border-bottom pb-2">🍳 Breakfast</h5>
+                    <div id="breakfast-logs" class="list-group list-group-flush bg-transparent">
+                        <p class="text-muted small py-2">No food logged for breakfast yet.</p>
+                    </div>
+                </div>
+
+                <!-- Lunch -->
+                <div class="meal-section mb-4">
+                    <h5 class="fw-bold text-success border-bottom pb-2">🥪 Lunch</h5>
+                    <div id="lunch-logs" class="list-group list-group-flush bg-transparent">
+                        <p class="text-muted small py-2">No food logged for lunch yet.</p>
+                    </div>
+                </div>
+
+                <!-- Dinner -->
+                <div class="meal-section mb-4">
+                    <h5 class="fw-bold text-warning border-bottom pb-2">🍗 Dinner</h5>
+                    <div id="dinner-logs" class="list-group list-group-flush bg-transparent">
+                        <p class="text-muted small py-2">No food logged for dinner yet.</p>
+                    </div>
+                </div>
+
+                <!-- Snack -->
+                <div class="meal-section mb-4">
+                    <h5 class="fw-bold text-secondary border-bottom pb-2">🍿 Snacks</h5>
+                    <div id="snack-logs" class="list-group list-group-flush bg-transparent">
+                        <p class="text-muted small py-2">No food logged for snacks yet.</p>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- AI Macro Calculator panel -->
+    <div class="col-lg-5">
+        <div class="glass-card bg-primary bg-opacity-10 border border-primary border-opacity-25">
+            <h3 class="fw-bold mb-3 text-primary">✨ AI Macro Calculator</h3>
+            <p class="text-muted small mb-4">Describe what you ate in natural language, and the AI will estimate macros and log the meal instantly.</p>
+            
+            <form id="ai-estimate-form">
+                <div class="mb-3">
+                    <label for="ai-food-input" class="form-label fw-semibold text-muted">What did you eat?</label>
+                    <textarea id="ai-food-input" class="form-control" rows="3" placeholder="Describe your meal... e.g. 2 fried eggs, 1 slice of toast, 100g Greek yogurt" required></textarea>
+                </div>
+                <div class="row mb-3">
+                    <div class="col-12">
+                        <label for="ai-meal-type" class="form-label fw-semibold text-muted">Meal Category</label>
+                        <select id="ai-meal-type" class="form-select">
+                            <option value="breakfast">🍳 Breakfast</option>
+                            <option value="lunch">🥪 Lunch</option>
+                            <option value="dinner">🍗 Dinner</option>
+                            <option value="snack">🍿 Snack</option>
+                        </select>
+                    </div>
+                </div>
+                
+                <button type="submit" class="btn btn-primary w-100 py-3 mt-2" id="btn-ai-submit">Log Meal with AI</button>
+                
+                <div class="d-none mt-3" id="ai-loader">
+                    <div class="d-flex align-items-center justify-content-center gap-2">
+                        <span class="spinner-border spinner-border-sm text-primary" role="status"></span>
+                        <span class="text-primary fw-semibold small">AI is estimating and logging...</span>
+                    </div>
+                </div>
+                <div class="text-danger small mt-2 d-none text-center" id="ai-error-msg"></div>
+            </form>
+        </div>
+    </div>
+</div>
+
+<!-- Favorites Table Row -->
+<div class="row mt-4">
+    <div class="col-12">
+        <div class="glass-card">
+            <div class="d-flex justify-content-between align-items-center mb-4">
+                <h3 class="fw-bold mb-0">⭐ Favorite & Daily Foods</h3>
+                <button type="button" class="btn btn-outline-primary btn-sm" data-bs-toggle="modal" data-bs-target="#add-favorite-modal">➕ Add Custom Favorite</button>
+            </div>
+            <p class="text-muted small mb-3">Quickly log your frequently eaten foods by clicking one of the meal buttons.</p>
+            <div class="table-responsive">
+                <table class="table table-hover text-white align-middle" style="color: var(--text-main) !important;">
+                    <thead>
+                        <tr class="text-muted border-secondary">
+                            <th>Food Name</th>
+                            <th>Calories</th>
+                            <th>Protein</th>
+                            <th>Carbs</th>
+                            <th>Fats</th>
+                            <th>Serving Size</th>
+                            <th class="text-end">Quick Log</th>
+                            <th class="text-end">Remove</th>
+                        </tr>
+                    </thead>
+                    <tbody id="favorites-table-body">
+                        <tr>
+                            <td colspan="8" class="text-center text-muted small py-4">No favorite foods saved yet. Click the ⭐ icon next to today's logged foods to save them here.</td>
+                        </tr>
+                    </tbody>
+                </table>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Modal for adding custom favorite foods manually -->
+<div class="modal fade" id="add-favorite-modal" tabindex="-1" aria-hidden="true">
+    <div class="modal-dialog modal-dialog-centered">
+        <div class="modal-content bg-dark border-0 text-white rounded-4 shadow-lg" style="background-color: var(--bg-primary) !important;">
+            <div class="modal-header border-0 pb-0">
+                <h5 class="modal-title fw-bold">⭐ Save Custom Favorite Food</h5>
+                <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal" aria-label="Close"></button>
+            </div>
+            <div class="modal-body text-start">
+                <form id="add-favorite-form">
+                    <div class="mb-3">
+                        <label for="fav-name" class="form-label fw-semibold text-muted">Food Name</label>
+                        <input type="text" id="fav-name" class="form-control" placeholder="e.g. Oatmeal Bowl" required>
+                    </div>
+                    <div class="row">
+                        <div class="col-6 mb-3">
+                            <label for="fav-calories" class="form-label fw-semibold text-muted">Calories (kcal)</label>
+                            <input type="number" id="fav-calories" class="form-control" placeholder="kcal" required step="1">
+                        </div>
+                        <div class="col-6 mb-3">
+                            <label for="fav-protein" class="form-label fw-semibold text-muted">Protein (g)</label>
+                            <input type="number" id="fav-protein" class="form-control" placeholder="grams" required step="0.1">
+                        </div>
+                    </div>
+                    <div class="row">
+                        <div class="col-6 mb-3">
+                            <label for="fav-carbs" class="form-label fw-semibold text-muted">Carbs (g)</label>
+                            <input type="number" id="fav-carbs" class="form-control" placeholder="grams" required step="0.1">
+                        </div>
+                        <div class="col-6 mb-3">
+                            <label for="fav-fat" class="form-label fw-semibold text-muted">Fats (g)</label>
+                            <input type="number" id="fav-fat" class="form-control" placeholder="grams" required step="0.1">
+                        </div>
+                    </div>
+                    <div class="mb-3">
+                        <label for="fav-serving" class="form-label fw-semibold text-muted">Serving Size</label>
+                        <input type="text" id="fav-serving" class="form-control" value="1 serving" placeholder="e.g. 1 bowl, 100g" required>
+                    </div>
+                    <button type="submit" class="btn btn-primary w-100 mt-2">Save to Favorites</button>
+                </form>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}
+
+{% block scripts %}
+<script>
+    const addFavoriteModal = new bootstrap.Modal(document.getElementById('add-favorite-modal'));
+
+    // 1. AI Quick Estimate & Log Directly
+    document.getElementById('ai-estimate-form').addEventListener('submit', async (e) => {
+        e.preventDefault();
+        const inputField = document.getElementById('ai-food-input');
+        const desc = inputField.value.trim();
+        const mealType = document.getElementById('ai-meal-type').value;
+        const loader = document.getElementById('ai-loader');
+        const errorMsg = document.getElementById('ai-error-msg');
+        const submitBtn = document.getElementById('btn-ai-submit');
+        
+        if (!desc) return;
+        
+        loader.classList.remove('d-none');
+        errorMsg.classList.add('d-none');
+        submitBtn.disabled = true;
+        
+        try {
+            // A. Get estimation from AI
+            const data = await apiRequest('/api/food/ai-estimate/', 'POST', { text: desc });
+            
+            // B. Log food item directly using the response macros
+            await apiRequest('/api/food-log/', 'POST', {
+                food_name: data.name,
+                calories: data.calories,
+                protein: data.protein,
+                carbs: data.carbs,
+                fat: data.fat,
+                meal_type: mealType,
+                quantity: 1.0
+            });
+            
+            // Clear input and reload list
+            inputField.value = '';
+            loader.classList.add('d-none');
+            submitBtn.disabled = false;
+            loadFoodLogs();
+        } catch (err) {
+            loader.classList.add('d-none');
+            submitBtn.disabled = false;
+            errorMsg.textContent = `AI Error: ${err.message}`;
+            errorMsg.classList.remove('d-none');
+        }
+    });
+
+    // 2. Handle manual favorites creation form
+    document.getElementById('add-favorite-form').addEventListener('submit', async (e) => {
+        e.preventDefault();
+        const name = document.getElementById('fav-name').value;
+        const kcal = parseFloat(document.getElementById('fav-calories').value);
+        const prot = parseFloat(document.getElementById('fav-protein').value);
+        const carbs = parseFloat(document.getElementById('fav-carbs').value);
+        const fat = parseFloat(document.getElementById('fav-fat').value);
+        const serving = document.getElementById('fav-serving').value;
+        
+        try {
+            await apiRequest('/api/food/favorite/', 'POST', {
+                name: name,
+                calories: kcal,
+                protein: prot,
+                carbs: carbs,
+                fat: fat,
+                serving_size: serving
+            });
+            
+            document.getElementById('add-favorite-form').reset();
+            document.getElementById('fav-serving').value = '1 serving';
+            addFavoriteModal.hide();
+            loadFavorites();
+        } catch (err) {
+            alert("Failed to save favorite: " + err.message);
+        }
+    });
+
+    // 3. Favorite Foods Management list loading & delete/log
+    async function loadFavorites() {
+        try {
+            const list = await apiRequest('/api/food/favorite/');
+            const tbody = document.getElementById('favorites-table-body');
+            tbody.innerHTML = '';
+            
+            if (list.length === 0) {
+                tbody.innerHTML = `<tr><td colspan="8" class="text-center text-muted small py-4">No favorite foods saved yet. Click the ⭐ icon next to today's logged foods to save them here.</td></tr>`;
+                return;
+            }
+            
+            list.forEach(food => {
+                const tr = document.createElement('tr');
+                tr.className = 'border-secondary';
+                tr.innerHTML = `
+                    <td><strong class="glow-name">${food.name}</strong></td>
+                    <td>${Math.round(food.calories)} kcal</td>
+                    <td>${Math.round(food.protein)}g</td>
+                    <td>${Math.round(food.carbs)}g</td>
+                    <td>${Math.round(food.fat)}g</td>
+                    <td>${food.serving_size}</td>
+                    <td class="text-end">
+                        <div class="btn-group btn-group-sm" role="group">
+                            <button type="button" class="btn btn-outline-primary px-2" onclick="quickLogFavorite(${food.id}, 'breakfast')" title="Log Breakfast">🍳 B</button>
+                            <button type="button" class="btn btn-outline-success px-2" onclick="quickLogFavorite(${food.id}, 'lunch')" title="Log Lunch">🥪 L</button>
+                            <button type="button" class="btn btn-outline-warning px-2" onclick="quickLogFavorite(${food.id}, 'dinner')" title="Log Dinner">🍗 D</button>
+                            <button type="button" class="btn btn-outline-secondary px-2" onclick="quickLogFavorite(${food.id}, 'snack')" title="Log Snack">🍿 S</button>
+                        </div>
+                    </td>
+                    <td class="text-end">
+                        <button type="button" class="btn btn-outline-danger btn-sm border-0" onclick="removeFavorite(${food.id})">✕</button>
+                    </td>
+                `;
+                tbody.appendChild(tr);
+            });
+        } catch (err) {
+            console.error("Failed to load favorites:", err);
+        }
+    }
+
+    async function favoriteLoggedFood(logId) {
+        try {
+            const logs = await apiRequest('/api/food-log/');
+            const log = logs.find(l => l.id === logId);
+            if (!log) return;
+            
+            await apiRequest('/api/food/favorite/', 'POST', {
+                name: log.food_name,
+                calories: log.calories / log.quantity,
+                protein: log.protein / log.quantity,
+                carbs: log.carbs / log.quantity,
+                fat: log.fat / log.quantity,
+                serving_size: '1 serving'
+            });
+            
+            alert(`"${log.food_name}" saved to favorites!`);
+            loadFavorites();
+        } catch (err) {
+            alert("Failed to save favorite: " + err.message);
+        }
+    }
+
+    async function quickLogFavorite(foodId, mealType) {
+        try {
+            await apiRequest('/api/food-log/', 'POST', {
+                food_item: foodId,
+                meal_type: mealType,
+                quantity: 1.0
+            });
+            loadFoodLogs();
+        } catch (err) {
+            alert("Failed to log favorite: " + err.message);
+        }
+    }
+
+    async function removeFavorite(foodId) {
+        if (!confirm("Remove this food item from your favorites?")) return;
+        try {
+            await apiRequest(`/api/food/favorite/?food_item_id=${foodId}`, 'DELETE');
+            loadFavorites();
+        } catch (err) {
+            alert("Failed to remove: " + err.message);
+        }
+    }
+
+    // 4. Delete Logged entry
+    async function deleteLog(logId) {
+        if (!confirm("Are you sure you want to delete this log entry?")) return;
+        try {
+            await apiRequest(`/api/food-log/${logId}/`, 'DELETE');
+            loadFoodLogs();
+        } catch (err) {
+            alert("Failed to delete log: " + err.message);
+        }
+    }
+
+    // 5. Load Logged food lists
+    async function loadFoodLogs() {
+        try {
+            const logs = await apiRequest('/api/food-log/');
+            renderFoodLogs(logs);
+        } catch (err) {
+            console.error(err);
+        }
+    }
+
+    function renderFoodLogs(logs) {
+        const categories = {
+            breakfast: { id: 'breakfast-logs', list: [], icon: '🍳' },
+            lunch: { id: 'lunch-logs', list: [], icon: '🥪' },
+            dinner: { id: 'dinner-logs', list: [], icon: '🍗' },
+            snack: { id: 'snack-logs', list: [], icon: '🍿' },
+        };
+
+        let totalKcal = 0;
+        logs.forEach(log => {
+            totalKcal += parseFloat(log.calories);
+            const mealType = log.meal_type;
+            if (categories[mealType]) {
+                categories[mealType].list.push(log);
+            }
+        });
+
+        document.getElementById('total-kcal-badge').textContent = `${Math.round(totalKcal)} kcal`;
+
+        Object.keys(categories).forEach(type => {
+            const config = categories[type];
+            const div = document.getElementById(config.id);
+            div.innerHTML = '';
+
+            if (config.list.length === 0) {
+                div.innerHTML = `<p class="text-muted small py-2">No food logged for ${type} yet.</p>`;
+                return;
+            }
+
+            config.list.forEach(log => {
+                const item = document.createElement('div');
+                item.className = 'list-group-item bg-transparent border-0 px-0 d-flex justify-content-between align-items-center py-3 border-bottom';
+                item.innerHTML = `
+                    <div class="text-start">
+                        <h6 class="mb-0 fw-bold glow-name">${log.food_name} <span class="text-muted small fw-normal">(${log.quantity}x)</span></h6>
+                        <small class="text-muted">P: ${Math.round(log.protein)}g | C: ${Math.round(log.carbs)}g | F: ${Math.round(log.fat)}g</small>
+                    </div>
+                    <div class="d-flex align-items-center gap-2">
+                        <strong class="text-primary me-2">${Math.round(log.calories)} kcal</strong>
+                        <button type="button" class="btn btn-outline-warning btn-sm border-0 px-2 py-1" onclick="favoriteLoggedFood(${log.id})" title="Save to Favorites">⭐</button>
+                        <button type="button" class="btn btn-outline-danger btn-sm rounded-circle px-2 py-1 border-0" onclick="deleteLog(${log.id})">✕</button>
+                    </div>
+                `;
+                div.appendChild(item);
+            });
+        });
+    }
+
+    // Init page load
+    loadFoodLogs();
+    loadFavorites();
+</script>
+{% endblock %}

@@ -1,0 +1,110 @@
+{% extends 'tracker/base.html' %}
+{% block title %}Profile Settings | 🐰 Rabbit Fitness{% endblock %}
+{% block content %}
+<div class="row justify-content-center">
+    <div class="col-lg-8 col-md-10">
+        <div class="glass-card p-5">
+            <h2 class="fw-bold mb-2 text-primary">⚙️ Profile & Goal Settings</h2>
+            <p class="text-muted mb-4">Customize your fitness parameters and macro targets to generate accurate logs and AI recommendations.</p>
+            
+            <form method="POST">
+                {% csrf_token %}
+                
+                <h4 class="fw-bold mb-3 text-secondary border-bottom pb-2">1. Body Configuration</h4>
+                <div class="row mb-4">
+                    <div class="col-md-4 mb-3">
+                        <label for="age" class="form-label fw-semibold text-muted">Age (years)</label>
+                        {{ profile_form.age }}
+                        {% if profile_form.age.errors %}
+                            <div class="text-danger small mt-1">{{ profile_form.age.errors }}</div>
+                        {% endif %}
+                    </div>
+                    <div class="col-md-4 mb-3">
+                        <label for="gender" class="form-label fw-semibold text-muted">Gender</label>
+                        {{ profile_form.gender }}
+                        {% if profile_form.gender.errors %}
+                            <div class="text-danger small mt-1">{{ profile_form.gender.errors }}</div>
+                        {% endif %}
+                    </div>
+                    <div class="col-md-4 mb-3">
+                        <label for="height" class="form-label fw-semibold text-muted">Height (cm)</label>
+                        {{ profile_form.height }}
+                        {% if profile_form.height.errors %}
+                            <div class="text-danger small mt-1">{{ profile_form.height.errors }}</div>
+                        {% endif %}
+                    </div>
+                </div>
+
+                <h4 class="fw-bold mb-3 text-secondary border-bottom pb-2">2. Fitness Goals</h4>
+                <div class="row mb-4">
+                    <div class="col-md-4 mb-3">
+                        <label for="goal_type" class="form-label fw-semibold text-muted">Goal Type</label>
+                        {{ goal_form.goal_type }}
+                        {% if goal_form.goal_type.errors %}
+                            <div class="text-danger small mt-1">{{ goal_form.goal_type.errors }}</div>
+                        {% endif %}
+                    </div>
+                    <div class="col-md-4 mb-3">
+                        <label for="current_weight" class="form-label fw-semibold text-muted">Current Weight (kg)</label>
+                        {{ goal_form.current_weight }}
+                        {% if goal_form.current_weight.errors %}
+                            <div class="text-danger small mt-1">{{ goal_form.current_weight.errors }}</div>
+                        {% endif %}
+                    </div>
+                    <div class="col-md-4 mb-3">
+                        <label for="target_weight" class="form-label fw-semibold text-muted">Target Weight (kg)</label>
+                        {{ goal_form.target_weight }}
+                        {% if goal_form.target_weight.errors %}
+                            <div class="text-danger small mt-1">{{ goal_form.target_weight.errors }}</div>
+                        {% endif %}
+                    </div>
+                </div>
+
+                <h4 class="fw-bold mb-3 text-secondary border-bottom pb-2">3. Daily Targets</h4>
+                <div class="row mb-4">
+                    <div class="col-md-6 mb-3">
+                        <label for="daily_calorie_goal" class="form-label fw-semibold text-muted">Calorie Goal (kcal)</label>
+                        {{ goal_form.daily_calorie_goal }}
+                        {% if goal_form.daily_calorie_goal.errors %}
+                            <div class="text-danger small mt-1">{{ goal_form.daily_calorie_goal.errors }}</div>
+                        {% endif %}
+                    </div>
+                    <div class="col-md-6 mb-3">
+                        <label for="daily_water_goal" class="form-label fw-semibold text-muted">Water Goal (ml)</label>
+                        {{ goal_form.daily_water_goal }}
+                        {% if goal_form.daily_water_goal.errors %}
+                            <div class="text-danger small mt-1">{{ goal_form.daily_water_goal.errors }}</div>
+                        {% endif %}
+                    </div>
+                    <div class="col-md-4 mb-3">
+                        <label for="daily_protein_goal" class="form-label fw-semibold text-muted">Protein (g)</label>
+                        {{ goal_form.daily_protein_goal }}
+                        {% if goal_form.daily_protein_goal.errors %}
+                            <div class="text-danger small mt-1">{{ goal_form.daily_protein_goal.errors }}</div>
+                        {% endif %}
+                    </div>
+                    <div class="col-md-4 mb-3">
+                        <label for="daily_carbs_goal" class="form-label fw-semibold text-muted">Carbs (g)</label>
+                        {{ goal_form.daily_carbs_goal }}
+                        {% if goal_form.daily_carbs_goal.errors %}
+                            <div class="text-danger small mt-1">{{ goal_form.daily_carbs_goal.errors }}</div>
+                        {% endif %}
+                    </div>
+                    <div class="col-md-4 mb-3">
+                        <label for="daily_fats_goal" class="form-label fw-semibold text-muted">Fats (g)</label>
+                        {{ goal_form.daily_fats_goal }}
+                        {% if goal_form.daily_fats_goal.errors %}
+                            <div class="text-danger small mt-1">{{ goal_form.daily_fats_goal.errors }}</div>
+                        {% endif %}
+                    </div>
+                </div>
+
+                <div class="d-flex justify-content-end gap-3 mt-4">
+                    <a href="{% url 'dashboard' %}" class="btn btn-outline-secondary px-4 py-2">Cancel</a>
+                    <button type="submit" class="btn btn-primary px-5 py-2">Save Profile</button>
+                </div>
+            </form>
+        </div>
+    </div>
+</div>
+{% endblock %}

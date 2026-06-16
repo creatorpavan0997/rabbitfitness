@@ -1,0 +1,52 @@
+{% extends 'tracker/base.html' %}
+{% block title %}Register | 🐰 Rabbit Fitness{% endblock %}
+{% block content %}
+<div class="row justify-content-center align-items-center auth-wrapper">
+    <div class="col-md-5">
+        <div class="glass-card text-center p-5">
+            <h2 class="fw-bold mb-3 text-primary">🐰 Join Rabbit Fitness</h2>
+            <p class="text-muted mb-4">Set goals, track food and water, analyze with AI</p>
+            
+            <form method="POST">
+                {% csrf_token %}
+                
+                <div class="mb-3 text-start">
+                    <label for="username" class="form-label fw-semibold text-muted">Username</label>
+                    {{ form.username }}
+                    {% if form.username.errors %}
+                        <div class="text-danger small mt-1">{{ form.username.errors }}</div>
+                    {% endif %}
+                </div>
+                
+                <div class="mb-3 text-start">
+                    <label for="email" class="form-label fw-semibold text-muted">Email Address</label>
+                    {{ form.email }}
+                    {% if form.email.errors %}
+                        <div class="text-danger small mt-1">{{ form.email.errors }}</div>
+                    {% endif %}
+                </div>
+                
+                <div class="mb-3 text-start">
+                    <label for="password" class="form-label fw-semibold text-muted">Password</label>
+                    {{ form.password }}
+                    {% if form.password.errors %}
+                        <div class="text-danger small mt-1">{{ form.password.errors }}</div>
+                    {% endif %}
+                </div>
+                
+                <div class="mb-4 text-start">
+                    <label for="password_confirm" class="form-label fw-semibold text-muted">Confirm Password</label>
+                    {{ form.password_confirm }}
+                    {% if form.password_confirm.errors %}
+                        <div class="text-danger small mt-1">{{ form.password_confirm.errors }}</div>
+                    {% endif %}
+                </div>
+                
+                <button type="submit" class="btn btn-primary w-100 py-3 mb-3">Create Account</button>
+            </form>
+            
+            <p class="mb-0 text-muted">Already have an account? <a href="{% url 'login' %}" class="text-primary fw-bold text-decoration-none">Sign in</a></p>
+        </div>
+    </div>
+</div>
+{% endblock %}
